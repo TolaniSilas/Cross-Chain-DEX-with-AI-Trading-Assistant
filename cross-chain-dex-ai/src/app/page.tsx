@@ -1,11 +1,11 @@
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import ParticleBackground from '@/components/common/ParticleBackground'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Zap, Link as LinkIcon } from 'lucide-react'
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 relative overflow-hidden">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-blue-50 relative overflow-hidden">
       {/* Particle background effect */}
       <div className="absolute inset-0 opacity-30">
         <ParticleBackground />
@@ -45,7 +45,7 @@ export default function Home() {
         <div className="grid md:grid-cols-3 gap-6 mt-20">
           <div className="bg-white/80 backdrop-blur p-8 rounded-3xl border border-gray-200 hover:border-blue-300 transition-all hover:shadow-lg">
             <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
-              <span className="text-2xl">⚡</span>
+              <Zap className="w-6 h-6 text-blue-600" />
             </div>
             <h3 className="text-xl font-semibold mb-3 text-gray-900">Lightning Fast</h3>
             <p className="text-gray-600">
@@ -55,7 +55,7 @@ export default function Home() {
 
           <div className="bg-white/80 backdrop-blur p-8 rounded-3xl border border-gray-200 hover:border-blue-300 transition-all hover:shadow-lg">
             <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
-              <span className="text-2xl">🔗</span>
+              <LinkIcon className="w-6 h-6 text-blue-600" />
             </div>
             <h3 className="text-xl font-semibold mb-3 text-gray-900">Cross-Chain</h3>
             <p className="text-gray-600">
@@ -65,7 +65,7 @@ export default function Home() {
 
           <div className="bg-white/80 backdrop-blur p-8 rounded-3xl border border-gray-200 hover:border-blue-300 transition-all hover:shadow-lg">
             <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
-              <span className="text-2xl">🤖</span>
+              <Zap className="w-6 h-6 text-blue-600" />
             </div>
             <h3 className="text-xl font-semibold mb-3 text-gray-900">AI Powered</h3>
             <p className="text-gray-600">
