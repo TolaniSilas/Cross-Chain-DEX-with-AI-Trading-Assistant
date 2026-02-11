@@ -1,12 +1,14 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import '@rainbow-me/rainbowkit/styles.css'  
+import { Providers } from '@/lib/providers'  
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'DEX AI Assistant',
-  description: 'Cross-chain DEX with AI-powered trading assistant',
+  title: 'C-DEX AI',
+  description: 'AI-powered cross-chain DEX',
 }
 
 export default function RootLayout({
@@ -17,7 +19,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        {children}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   )

@@ -1,19 +1,22 @@
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
+import ParticleBackground from '@/components/common/ParticleBackground'
 import { ArrowRight } from 'lucide-react'
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 relative overflow-hidden">
-      {/* Particle background effect - will add with particles.js */}
-      <div className="absolute inset-0 opacity-30" id="particles-js"></div>
+      {/* Particle background effect */}
+      <div className="absolute inset-0 opacity-30">
+        <ParticleBackground />
+      </div>
       
       <Header />
       
       <main className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         {/* Hero Section */}
         <div className="text-center mb-16">
-          <h1 className="text-6xl font-bold text-gray-900 mb-6">
+          <h1 className="text-5xl sm:text-6xl font-bold text-gray-900 mb-6">
             Trade smarter with AI
           </h1>
           <p className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto">
@@ -21,17 +24,17 @@ export default function Home() {
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex justify-center gap-4">
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link 
               href="/swap"
-              className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-semibold hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2 text-lg"
+              className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-semibold hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-lg"
             >
               Start Trading
               <ArrowRight className="w-5 h-5" />
             </Link>
             <Link 
               href="/chat"
-              className="bg-white text-blue-600 border-2 border-blue-600 px-8 py-4 rounded-2xl font-semibold hover:bg-blue-50 transition-all flex items-center gap-2 text-lg"
+              className="bg-white text-blue-600 border-2 border-blue-600 px-8 py-4 rounded-2xl font-semibold hover:bg-blue-50 transition-all flex items-center justify-center gap-2 text-lg"
             >
               Try AI Assistant
             </Link>
