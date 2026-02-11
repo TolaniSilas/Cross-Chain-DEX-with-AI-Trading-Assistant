@@ -41,7 +41,7 @@ export default function Header() {
             {/* Logo */}
             <Link href="/" className="flex items-center space-x-2">
               <Image 
-                src="/cross-chain-dex-ai/public/icons/ethereum-eth-logo.svg" 
+                src="/cdex-ai-logo.png" 
                 alt="C-DEX AI" 
                 width={32} 
                 height={32}
