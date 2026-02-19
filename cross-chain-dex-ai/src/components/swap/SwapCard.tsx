@@ -5,6 +5,7 @@ import { useAccount, useChainId } from 'wagmi'
 import { ArrowDownUp, Settings, AlertCircle } from 'lucide-react'
 import { getTokensByChain, type Token } from '@/config/tokens'
 import { supportedChains } from '@/config/chains'
+import TokenSelector from './TokenSelector'
 
 export default function SwapCard() {
   const { isConnected } = useAccount()
@@ -70,8 +71,8 @@ export default function SwapCard() {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto">
-      <div className="bg-white/80 backdrop-blur border border-gray-200 rounded-3xl shadow-lg p-6">
+    <div className="w-full max-w-2xl mx-auto">
+      <div className="bg-white/80 backdrop-blur border border-gray-200 rounded-3xl shadow-lg p-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900">Swap</h2>
@@ -125,29 +126,20 @@ export default function SwapCard() {
         {/* From Token */}
         <div className="mb-4">
           <label className="block text-sm font-semibold text-gray-700 mb-2">From</label>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-stretch">
             <input
               type="number"
               value={fromAmount}
               onChange={e => handleFromAmountChange(e.target.value)}
               placeholder="0"
-              className="flex-1 px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500 text-lg font-semibold"
+              className="flex-1 min-w-0 px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg font-semibold"
             />
-            <select
-              value={fromToken?.address || ''}
-              onChange={e => {
-                const token = availableTokens.find(t => t.address === e.target.value)
-                setFromToken(token || null)
-              }}
-              className="px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500 font-semibold bg-white cursor-pointer"
-            >
-              <option value="">Select token</option>
-              {availableTokens.map(token => (
-                <option key={token.address} value={token.address}>
-                  {token.symbol}
-                </option>
-              ))}
-            </select>
+            <TokenSelector
+              tokens={availableTokens}
+              selectedToken={fromToken}
+              onSelect={setFromToken}
+              placeholder="Select token"
+            />
           </div>
         </div>
 
@@ -166,29 +158,20 @@ export default function SwapCard() {
         {/* To Token */}
         <div className="mb-6">
           <label className="block text-sm font-semibold text-gray-700 mb-2">To</label>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-stretch">
             <input
               type="number"
               value={toAmount}
               readOnly
               placeholder="0"
-              className="flex-1 px-4 py-3 border border-gray-200 rounded-2xl bg-gray-50 text-lg font-semibold text-gray-600"
+              className="flex-1 min-w-0 px-4 py-3 border border-gray-200 rounded-2xl bg-gray-50 text-lg font-semibold text-gray-600"
             />
-            <select
-              value={toToken?.address || ''}
-              onChange={e => {
-                const token = availableTokens.find(t => t.address === e.target.value)
-                setToToken(token || null)
-              }}
-              className="px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500 font-semibold bg-white cursor-pointer"
-            >
-              <option value="">Select token</option>
-              {availableTokens.map(token => (
-                <option key={token.address} value={token.address}>
-                  {token.symbol}
-                </option>
-              ))}
-            </select>
+            <TokenSelector
+              tokens={availableTokens}
+              selectedToken={toToken}
+              onSelect={setToToken}
+              placeholder="Select token"
+            />
           </div>
         </div>
 
