@@ -71,11 +71,11 @@ export default function SwapCard() {
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto">
-      <div className="bg-white/80 backdrop-blur border border-gray-200 rounded-3xl shadow-lg p-8">
+    <div className="w-full max-w-2xl mx-auto px-0 sm:px-0">
+      <div className="bg-white/80 backdrop-blur border border-gray-200 rounded-2xl sm:rounded-3xl shadow-lg p-4 sm:p-6 md:p-8">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Swap</h2>
+        <div className="flex justify-between items-center mb-4 sm:mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Swap</h2>
           <button
             onClick={() => setShowSettings(!showSettings)}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -87,7 +87,7 @@ export default function SwapCard() {
 
         {/* Settings Panel */}
         {showSettings && (
-          <div className="mb-6 p-4 bg-gray-50 rounded-2xl border border-gray-200">
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 rounded-xl sm:rounded-2xl border border-gray-200">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Slippage Tolerance
             </label>
@@ -118,21 +118,21 @@ export default function SwapCard() {
 
         {/* Current Chain Info */}
         {currentChain && (
-          <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-2xl text-sm text-blue-700">
+          <div className="mb-4 sm:mb-6 p-2.5 sm:p-3 bg-blue-50 border border-blue-200 rounded-xl sm:rounded-2xl text-xs sm:text-sm text-blue-700">
             Trading on <span className="font-semibold">{currentChain.name}</span>
           </div>
         )}
 
-        {/* From Token */}
-        <div className="mb-4">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">From</label>
-          <div className="flex gap-3 items-stretch">
+        {/* From Token - stacked on mobile so dropdown doesn't cover To section */}
+        <div className="mb-3 sm:mb-4">
+          <label className="block text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">From</label>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch">
             <input
               type="number"
               value={fromAmount}
               onChange={e => handleFromAmountChange(e.target.value)}
               placeholder="0"
-              className="flex-1 min-w-0 px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg font-semibold"
+              className="w-full min-w-0 px-3 py-2.5 sm:px-4 sm:py-3 border border-gray-200 rounded-xl sm:rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-lg font-semibold"
             />
             <TokenSelector
               tokens={availableTokens}
@@ -144,27 +144,27 @@ export default function SwapCard() {
         </div>
 
         {/* Swap Button */}
-        <div className="flex justify-center mb-4">
+        <div className="flex justify-center mb-3 sm:mb-4">
           <button
             onClick={handleSwapTokens}
             disabled={!fromToken || !toToken}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Swap tokens"
           >
-            <ArrowDownUp className="w-6 h-6 text-blue-600" />
+            <ArrowDownUp className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
           </button>
         </div>
 
         {/* To Token */}
-        <div className="mb-6">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">To</label>
-          <div className="flex gap-3 items-stretch">
+        <div className="mb-4 sm:mb-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">To</label>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch">
             <input
               type="number"
               value={toAmount}
               readOnly
               placeholder="0"
-              className="flex-1 min-w-0 px-4 py-3 border border-gray-200 rounded-2xl bg-gray-50 text-lg font-semibold text-gray-600"
+              className="w-full min-w-0 px-3 py-2.5 sm:px-4 sm:py-3 border border-gray-200 rounded-xl sm:rounded-2xl bg-gray-50 text-base sm:text-lg font-semibold text-gray-600"
             />
             <TokenSelector
               tokens={availableTokens}
@@ -177,7 +177,7 @@ export default function SwapCard() {
 
         {/* Price Info */}
         {fromToken && toToken && fromAmount && (
-          <div className="mb-6 p-4 bg-gray-50 rounded-2xl">
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 rounded-xl sm:rounded-2xl">
             <div className="flex justify-between text-sm mb-2">
               <span className="text-gray-600">Price</span>
               <span className="font-semibold text-gray-900">1 {fromToken.symbol} = 1 {toToken.symbol}</span>
@@ -191,9 +191,9 @@ export default function SwapCard() {
 
         {/* Warning if not connected */}
         {!isConnected && (
-          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-2xl flex gap-3">
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-yellow-50 border border-yellow-200 rounded-xl sm:rounded-2xl flex gap-2 sm:gap-3">
             <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
-            <p className="text-sm text-yellow-800">Connect your wallet to start trading</p>
+            <p className="text-xs sm:text-sm text-yellow-800">Connect your wallet to start trading</p>
           </div>
         )}
 
@@ -201,7 +201,7 @@ export default function SwapCard() {
         <button
           onClick={handleSwap}
           disabled={!isConnected || !fromToken || !toToken || !fromAmount || isLoading}
-          className={`w-full py-4 rounded-2xl font-semibold text-lg transition-all ${
+          className={`w-full py-3 sm:py-4 rounded-xl sm:rounded-2xl font-semibold text-base sm:text-lg transition-all ${
             isConnected && fromToken && toToken && fromAmount && !isLoading
               ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg'
               : 'bg-gray-200 text-gray-500 cursor-not-allowed'

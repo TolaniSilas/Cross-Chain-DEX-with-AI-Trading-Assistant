@@ -1,7 +1,6 @@
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import PortfolioCard from '@/components/wallet/PortfolioCard'
-import { Lightbulb } from 'lucide-react'
 import ParticleBackground from '@/components/common/ParticleBackground'
 
 export const metadata = {
@@ -19,13 +18,13 @@ export default function PortfolioPage() {
     </div>
 
       <Header />
-      <main className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Your Portfolio</h1>
-          <p className="text-lg text-gray-600">
+      <main className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24">
+        <div className="mb-6 sm:mb-8 text-center px-1">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2">Your Portfolio</h1>
+          <p className="text-sm sm:text-base md:text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
             Track your assets across all supported networks
           </p>
-        </div> */}
+        </div>
         <PortfolioCard />
       </main>
       

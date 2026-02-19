@@ -41,12 +41,12 @@ export default function TokenSelector({
   }, [])
 
   return (
-    <div ref={containerRef} className="relative min-w-[220px] sm:min-w-[260px]">
+    <div ref={containerRef} className="relative w-full min-w-0 sm:min-w-[260px]">
       <button
         type="button"
         onClick={() => !disabled && setIsOpen((o) => !o)}
         disabled={disabled}
-        className="w-full flex items-center justify-between gap-2 px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-semibold bg-white cursor-pointer hover:border-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
+        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 sm:px-4 sm:py-3 border border-gray-200 rounded-xl sm:rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-semibold bg-white cursor-pointer hover:border-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left text-sm sm:text-base"
       >
         <span className="truncate text-gray-900">
           {selectedToken ? (
@@ -66,21 +66,21 @@ export default function TokenSelector({
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden">
+        <div className="absolute z-50 top-full left-0 right-0 mt-1.5 sm:mt-2 bg-white border border-gray-200 rounded-xl sm:rounded-2xl shadow-xl overflow-hidden">
           <div className="p-2 border-b border-gray-100">
-            <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl">
-              <Search className="w-4 h-4 text-gray-400" />
+            <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg sm:rounded-xl">
+              <Search className="w-4 h-4 text-gray-400 shrink-0" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by name or symbol"
-                className="flex-1 bg-transparent border-none outline-none text-sm text-gray-700 placeholder-gray-400"
+                className="flex-1 min-w-0 bg-transparent border-none outline-none text-sm text-gray-700 placeholder-gray-400"
                 autoFocus
               />
             </div>
           </div>
-          <div className="max-h-56 overflow-y-auto py-2">
+          <div className="max-h-[140px] sm:max-h-56 overflow-y-auto py-1 sm:py-2">
             <button
               type="button"
               onClick={() => {
@@ -88,12 +88,12 @@ export default function TokenSelector({
                 setIsOpen(false)
                 setSearch('')
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors text-gray-500"
+              className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 text-left hover:bg-gray-50 transition-colors text-gray-500"
             >
               <span className="text-sm font-medium">{placeholder}</span>
             </button>
             {filteredTokens.length === 0 ? (
-              <div className="px-4 py-6 text-center text-sm text-gray-500">
+              <div className="px-3 sm:px-4 py-4 sm:py-6 text-center text-sm text-gray-500">
                 No tokens found
               </div>
             ) : (
@@ -106,7 +106,7 @@ export default function TokenSelector({
                     setIsOpen(false)
                     setSearch('')
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
+                  className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 text-left hover:bg-gray-50 transition-colors ${
                     selectedToken?.address === token.address ? 'bg-blue-50 hover:bg-blue-50' : ''
                   }`}
                 >

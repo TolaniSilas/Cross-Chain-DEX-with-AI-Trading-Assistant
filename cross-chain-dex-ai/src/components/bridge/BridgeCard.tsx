@@ -5,6 +5,8 @@ import { useAccount, useChainId } from 'wagmi'
 import { Settings, AlertCircle, Send } from 'lucide-react'
 import { getTokensByChain, type Token } from '@/config/tokens'
 import { supportedChains } from '@/config/chains'
+import ChainSelector from './ChainSelector'
+import TokenSelector from '@/components/swap/TokenSelector'
 
 export default function BridgeCard() {
   const { isConnected } = useAccount()
@@ -63,8 +65,8 @@ export default function BridgeCard() {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto">
-      <div className="bg-white/80 backdrop-blur border border-gray-200 rounded-3xl shadow-lg p-6">
+    <div className="w-full max-w-2xl mx-auto">
+      <div className="bg-white/80 backdrop-blur border border-gray-200 rounded-3xl shadow-lg p-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900">Bridge</h2>
@@ -104,60 +106,39 @@ export default function BridgeCard() {
         {/* From Chain */}
         <div className="mb-4">
           <label className="block text-sm font-semibold text-gray-700 mb-2">From Chain</label>
-          <select
-            value={fromChainId || ''}
-            onChange={e => {
-              setFromChainId(Number(e.target.value))
+          <ChainSelector
+            chains={supportedChains}
+            selectedChainId={fromChainId}
+            onSelect={(id) => {
+              setFromChainId(id)
               setToken(null)
             }}
-            className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500 font-semibold bg-white cursor-pointer"
-          >
-            <option value="">Select chain</option>
-            {supportedChains.map(chain => (
-              <option key={chain.id} value={chain.id}>
-                {chain.name}
-              </option>
-            ))}
-          </select>
+            placeholder="Select chain"
+          />
         </div>
 
         {/* To Chain */}
         <div className="mb-4">
           <label className="block text-sm font-semibold text-gray-700 mb-2">To Chain</label>
-          <select
-            value={toChainId || ''}
-            onChange={e => setToChainId(Number(e.target.value))}
-            className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500 font-semibold bg-white cursor-pointer"
+          <ChainSelector
+            chains={availableToChains}
+            selectedChainId={toChainId}
+            onSelect={setToChainId}
+            placeholder="Select destination chain"
             disabled={!fromChainId}
-          >
-            <option value="">Select destination chain</option>
-            {availableToChains.map(chain => (
-              <option key={chain.id} value={chain.id}>
-                {chain.name}
-              </option>
-            ))}
-          </select>
+          />
         </div>
 
         {/* Token */}
         <div className="mb-4">
           <label className="block text-sm font-semibold text-gray-700 mb-2">Token</label>
-          <select
-            value={token?.address || ''}
-            onChange={e => {
-              const selectedToken = availableTokens.find(t => t.address === e.target.value)
-              setToken(selectedToken || null)
-            }}
-            className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500 font-semibold bg-white cursor-pointer"
+          <TokenSelector
+            tokens={availableTokens}
+            selectedToken={token}
+            onSelect={setToken}
+            placeholder="Select token"
             disabled={!fromChainId}
-          >
-            <option value="">Select token</option>
-            {availableTokens.map(t => (
-              <option key={t.address} value={t.address}>
-                {t.symbol} - {t.name}
-              </option>
-            ))}
-          </select>
+          />
         </div>
 
         {/* Amount */}
@@ -168,7 +149,7 @@ export default function BridgeCard() {
             value={amount}
             onChange={e => setAmount(e.target.value)}
             placeholder="0"
-            className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500 text-lg font-semibold"
+            className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg font-semibold"
           />
         </div>
 
@@ -180,7 +161,7 @@ export default function BridgeCard() {
             value={recipient}
             onChange={e => setRecipient(e.target.value)}
             placeholder="0x..."
-            className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:border-blue-500 font-mono text-sm"
+            className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
           />
           <p className="text-xs text-gray-500 mt-1">Leave empty to use your wallet address</p>
         </div>
