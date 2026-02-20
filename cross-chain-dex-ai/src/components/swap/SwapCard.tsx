@@ -1,15 +1,19 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { useAccount, useChainId } from 'wagmi'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useAccount, useChainId, useWalletClient } from 'wagmi'
 import { ArrowDownUp, Settings, AlertCircle } from 'lucide-react'
 import { getTokensByChain, type Token } from '@/config/tokens'
 import { supportedChains } from '@/config/chains'
 import TokenSelector from './TokenSelector'
+import { useToast } from '@/hooks/ToastContext'
+import { validateAmount } from '@/lib/validation'
 
 export default function SwapCard() {
-  const { isConnected } = useAccount()
+  const { address, isConnected } = useAccount()
   const chainId = useChainId()
+  const { data: walletClient } = useWalletClient()
+  const { addToast } = useToast()
 
   const [fromToken, setFromToken] = useState<Token | null>(null)
   const [toToken, setToToken] = useState<Token | null>(null)
@@ -18,6 +22,8 @@ export default function SwapCard() {
   const [slippage, setSlippage] = useState('0.5')
   const [showSettings, setShowSettings] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [quoteLoading, setQuoteLoading] = useState(false)
+  const [amountError, setAmountError] = useState<string | null>(null)
 
   const availableTokens = useMemo(() => {
     return chainId ? getTokensByChain(chainId) : []
@@ -27,15 +33,58 @@ export default function SwapCard() {
     return supportedChains.find(c => c.id === chainId)
   }, [chainId])
 
-  // Simulate price calculation (in real app, use DEX API)
+  const fetchQuote = useCallback(async () => {
+    if (!chainId || !fromToken || !toToken || !fromAmount) {
+      setToAmount('')
+      return
+    }
+    const amountCheck = validateAmount(fromAmount)
+    if (!amountCheck.success) {
+      setToAmount('')
+      return
+    }
+    setQuoteLoading(true)
+    try {
+      const params = new URLSearchParams({
+        fromTokenAddress: fromToken.address,
+        toTokenAddress: toToken.address,
+        amount: fromAmount,
+        chainId: String(chainId),
+        fromDecimals: String(fromToken.decimals),
+        toDecimals: String(toToken.decimals),
+      })
+      const res = await fetch(`/api/swap/quote?${params}`)
+      const data = await res.json()
+      if (!res.ok) {
+        const msg = data.error || 'Quote failed'
+        if (res.status !== 503) addToast({ type: 'warning', title: msg })
+        setToAmount(fromAmount)
+        return
+      }
+      const outAmount = data.toAmount ?? data.dstAmount
+      if (outAmount !== undefined) {
+        const formatted = Number(outAmount) / 10 ** toToken.decimals
+        setToAmount(String(formatted))
+      } else {
+        setToAmount(fromAmount)
+      }
+    } catch {
+      setToAmount(fromAmount)
+    } finally {
+      setQuoteLoading(false)
+    }
+  }, [chainId, fromToken, toToken, fromAmount, addToast])
+
+  useEffect(() => {
+    const t = setTimeout(fetchQuote, 400)
+    return () => clearTimeout(t)
+  }, [fetchQuote])
+
   const handleFromAmountChange = (value: string) => {
     setFromAmount(value)
-    if (value && fromToken && toToken) {
-      // Simple 1:1 ratio for demo
-      setToAmount(value)
-    } else {
-      setToAmount('')
-    }
+    const result = validateAmount(value)
+    setAmountError(result.success ? null : result.error)
+    if (!value) setToAmount('')
   }
 
   const handleSwapTokens = () => {
@@ -46,34 +95,80 @@ export default function SwapCard() {
   }
 
   const handleSwap = async () => {
-    if (!isConnected) {
-      alert('Please connect your wallet')
+    if (!isConnected || !address) {
+      addToast({ type: 'warning', title: 'Please connect your wallet' })
       return
     }
-
     if (!fromToken || !toToken || !fromAmount) {
-      alert('Please fill in all fields')
+      addToast({ type: 'warning', title: 'Please fill in all fields' })
+      return
+    }
+    const amountResult = validateAmount(fromAmount)
+    if (!amountResult.success) {
+      addToast({ type: 'error', title: amountResult.error })
       return
     }
 
     setIsLoading(true)
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      alert(`Swap successful!\n${fromAmount} ${fromToken.symbol} → ${toAmount} ${toToken.symbol}`)
+      const params = new URLSearchParams({
+        fromTokenAddress: fromToken.address,
+        toTokenAddress: toToken.address,
+        amount: fromAmount,
+        chainId: String(chainId!),
+        slippage,
+        fromAddress: address,
+        fromDecimals: String(fromToken.decimals),
+      })
+      const res = await fetch(`/api/swap/build?${params}`)
+      const data = await res.json()
+      if (!res.ok) {
+        addToast({
+          type: 'error',
+          title: data.error || 'Failed to build swap',
+          message: data.hint,
+        })
+        return
+      }
+      const tx = data.tx ?? data
+      if (!tx?.data || !tx?.to) {
+        addToast({ type: 'error', title: 'Invalid swap response' })
+        return
+      }
+      if (!walletClient) {
+        addToast({ type: 'error', title: 'Wallet not ready' })
+        return
+      }
+      const hash = await walletClient.sendTransaction({
+        to: tx.to as `0x${string}`,
+        data: tx.data as `0x${string}`,
+        value: BigInt(tx.value ?? 0),
+        gas: tx.gas ? BigInt(tx.gas) : undefined,
+      })
+      addToast({
+        type: 'success',
+        title: 'Swap submitted',
+        message: `Tx: ${hash.slice(0, 10)}...`,
+      })
       setFromAmount('')
       setToAmount('')
-    } catch {
-      alert('Swap failed. Please try again.')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Swap failed'
+      addToast({ type: 'error', title: 'Swap failed', message: msg })
     } finally {
       setIsLoading(false)
     }
   }
 
+  const priceLabel = fromToken && toToken && fromAmount
+    ? quoteLoading
+      ? 'Fetching quote...'
+      : `1 ${fromToken.symbol} ≈ ${toAmount ? Number(toAmount) / Number(fromAmount) : '?'} ${toToken.symbol}`
+    : null
+
   return (
     <div className="w-full max-w-2xl mx-auto px-0 sm:px-0">
       <div className="bg-white/80 backdrop-blur border border-gray-200 rounded-2xl sm:rounded-3xl shadow-lg p-4 sm:p-6 md:p-8">
-        {/* Header */}
         <div className="flex justify-between items-center mb-4 sm:mb-6">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Swap</h2>
           <button
@@ -85,21 +180,16 @@ export default function SwapCard() {
           </button>
         </div>
 
-        {/* Settings Panel */}
         {showSettings && (
           <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 rounded-xl sm:rounded-2xl border border-gray-200">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Slippage Tolerance
-            </label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Slippage Tolerance</label>
             <div className="flex gap-2">
               {['0.1', '0.5', '1.0'].map(value => (
                 <button
                   key={value}
                   onClick={() => setSlippage(value)}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    slippage === value
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white border border-gray-200 text-gray-700 hover:border-blue-300'
+                    slippage === value ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:border-blue-300'
                   }`}
                 >
                   {value}%
@@ -116,14 +206,12 @@ export default function SwapCard() {
           </div>
         )}
 
-        {/* Current Chain Info */}
         {currentChain && (
           <div className="mb-4 sm:mb-6 p-2.5 sm:p-3 bg-blue-50 border border-blue-200 rounded-xl sm:rounded-2xl text-xs sm:text-sm text-blue-700">
             Trading on <span className="font-semibold">{currentChain.name}</span>
           </div>
         )}
 
-        {/* From Token - stacked on mobile so dropdown doesn't cover To section */}
         <div className="mb-3 sm:mb-4">
           <label className="block text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">From</label>
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch">
@@ -132,7 +220,9 @@ export default function SwapCard() {
               value={fromAmount}
               onChange={e => handleFromAmountChange(e.target.value)}
               placeholder="0"
-              className="w-full min-w-0 px-3 py-2.5 sm:px-4 sm:py-3 border border-gray-200 rounded-xl sm:rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-lg font-semibold"
+              className={`w-full min-w-0 px-3 py-2.5 sm:px-4 sm:py-3 border rounded-xl sm:rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-base sm:text-lg font-semibold ${
+                amountError ? 'border-red-300 bg-red-50/50' : 'border-gray-200 focus:border-transparent'
+              }`}
             />
             <TokenSelector
               tokens={availableTokens}
@@ -141,9 +231,9 @@ export default function SwapCard() {
               placeholder="Select token"
             />
           </div>
+          {amountError && <p className="mt-1 text-xs text-red-600">{amountError}</p>}
         </div>
 
-        {/* Swap Button */}
         <div className="flex justify-center mb-3 sm:mb-4">
           <button
             onClick={handleSwapTokens}
@@ -155,7 +245,6 @@ export default function SwapCard() {
           </button>
         </div>
 
-        {/* To Token */}
         <div className="mb-4 sm:mb-6">
           <label className="block text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">To</label>
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch">
@@ -175,12 +264,11 @@ export default function SwapCard() {
           </div>
         </div>
 
-        {/* Price Info */}
         {fromToken && toToken && fromAmount && (
           <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 rounded-xl sm:rounded-2xl">
             <div className="flex justify-between text-sm mb-2">
               <span className="text-gray-600">Price</span>
-              <span className="font-semibold text-gray-900">1 {fromToken.symbol} = 1 {toToken.symbol}</span>
+              <span className="font-semibold text-gray-900">{priceLabel ?? `1 ${fromToken.symbol} = 1 ${toToken.symbol}`}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Slippage</span>
@@ -189,7 +277,6 @@ export default function SwapCard() {
           </div>
         )}
 
-        {/* Warning if not connected */}
         {!isConnected && (
           <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-yellow-50 border border-yellow-200 rounded-xl sm:rounded-2xl flex gap-2 sm:gap-3">
             <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
@@ -197,12 +284,11 @@ export default function SwapCard() {
           </div>
         )}
 
-        {/* Swap Button */}
         <button
           onClick={handleSwap}
-          disabled={!isConnected || !fromToken || !toToken || !fromAmount || isLoading}
+          disabled={!isConnected || !fromToken || !toToken || !fromAmount || !!amountError || isLoading}
           className={`w-full py-3 sm:py-4 rounded-xl sm:rounded-2xl font-semibold text-base sm:text-lg transition-all ${
-            isConnected && fromToken && toToken && fromAmount && !isLoading
+            isConnected && fromToken && toToken && fromAmount && !amountError && !isLoading
               ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg'
               : 'bg-gray-200 text-gray-500 cursor-not-allowed'
           }`}

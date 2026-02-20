@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { Github, Twitter, ExternalLink } from 'lucide-react'
+import { Github, X, ExternalLink } from 'lucide-react'
 
 export default function Footer() {
   return (
@@ -87,13 +87,19 @@ export default function Footer() {
             </h3>
             <div className="flex space-x-3 sm:space-x-4">
               <Link
-                href="#"
+                href="https://x.com/thaguymaxx"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="X"
                 className="p-2 bg-gray-100 hover:bg-blue-100 rounded-lg transition-colors dark:bg-gray-800 dark:hover:bg-gray-700"
               >
-                <Twitter className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
               </Link>
               <Link
-                href="#"
+                href="https://github.com/TolaniSilas/Cross-Chain-DEX-with-AI-Trading-Assistant"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="GitHub"
                 className="p-2 bg-gray-100 hover:bg-blue-100 rounded-lg transition-colors dark:bg-gray-800 dark:hover:bg-gray-700"
               >
                 <Github className="w-5 h-5 text-gray-600 dark:text-gray-300" />

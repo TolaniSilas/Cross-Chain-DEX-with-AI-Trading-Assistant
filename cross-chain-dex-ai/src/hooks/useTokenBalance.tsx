@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
-import { useAccount, useReadContract } from 'wagmi'
+import { useEffect, useState, useMemo } from 'react'
+import { useAccount, useReadContract, useReadContracts, useBalance } from 'wagmi'
 import { formatUnits } from 'viem'
 import type { Token } from '@/config/tokens'
+import { useTokenPrices } from './useTokenPrices'
 
-// Standard ERC20 ABI for balance checking
 const ERC20_ABI = [
   {
     inputs: [{ name: 'account', type: 'address' }],
@@ -23,7 +23,13 @@ const ERC20_ABI = [
   },
 ] as const
 
-interface TokenBalance {
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+
+function isNative(token: Token): boolean {
+  return token.address.toLowerCase() === ZERO_ADDRESS
+}
+
+export interface TokenBalance {
   token: Token
   balance: string
   balanceUsd: string
@@ -31,68 +37,63 @@ interface TokenBalance {
   error: string | null
 }
 
-interface TokenPrice {
-  [tokenAddress: string]: number // Price in USD
-}
-
-// Mock token prices - in production, use Coingecko or chainlink
-const MOCK_TOKEN_PRICES: TokenPrice = {
-  '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': 1.0, // USDC
-  '0xdac17f958d2ee523a2206206994597c13d831ec7': 1.0, // USDT
-  '0x2260fac5e5542a773aa44fbcff9d822366f42dadb': 30000, // WBTC
-  '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2': 2500, // WETH
-}
-
-export default function useTokenBalance(token: Token | null, userAddress?: string) {
+export default function useTokenBalance(
+  token: Token | null,
+  userAddress?: string,
+  priceOverride?: number
+) {
   const { address } = useAccount()
   const targetAddress = userAddress || address
-  const [balance, setBalance] = useState<string>('0')
   const [balanceUsd, setBalanceUsd] = useState<string>('0')
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  // Read balance from contract
-  const { data: balanceData, isLoading: isBalanceLoading } = useReadContract({
-    address: token?.address as `0x${string}` | undefined,
+  const isNativeToken = token && isNative(token)
+  const nativeBalance = useBalance({
+    address: targetAddress as `0x${string}` | undefined,
+    query: {
+      enabled: !!targetAddress && !!isNativeToken,
+      refetchInterval: 15_000,
+    },
+  })
+  const erc20Balance = useReadContract({
+    address: token && !isNative(token) ? (token.address as `0x${string}`) : undefined,
     abi: ERC20_ABI,
     functionName: 'balanceOf',
     args: targetAddress ? [targetAddress as `0x${string}`] : undefined,
-    query: { enabled: !!token && !!targetAddress },
+    query: {
+      enabled: !!token && !!targetAddress && !isNativeToken,
+      refetchInterval: 15_000,
+    },
   })
 
+  const balanceData = isNativeToken ? nativeBalance.data : erc20Balance.data
+  const isLoading = isNativeToken ? nativeBalance.isLoading : erc20Balance.isLoading
+  const error = isNativeToken ? nativeBalance.error : erc20Balance.error
+
+  const balance = useMemo(() => {
+    if (!token || balanceData === undefined) return '0'
+    if (isNativeToken && balanceData) {
+      const b = balanceData as { value?: bigint; formatted?: string }
+      return b.formatted ?? (b.value != null ? formatUnits(b.value, token.decimals) : '0')
+    }
+    if (!isNativeToken && balanceData !== undefined) {
+      return formatUnits(balanceData as bigint, token.decimals)
+    }
+    return '0'
+  }, [token, balanceData, isNativeToken])
+
+  const price = priceOverride ?? 0
   useEffect(() => {
-    if (!token || !balanceData) {
-      setBalance('0')
-      setBalanceUsd('0')
-      return
-    }
+    const num = Number(balance)
+    const usd = (Number.isNaN(num) ? 0 : num * price).toFixed(2)
+    setBalanceUsd(usd)
+  }, [balance, price])
 
-    setIsLoading(isBalanceLoading)
-
-    try {
-      // Format balance with token decimals
-      const formatted = formatUnits(balanceData as bigint, token.decimals)
-      setBalance(formatted)
-
-      // Calculate USD value
-      const tokenPriceLower = token.address.toLowerCase()
-      const price =
-        MOCK_TOKEN_PRICES[tokenPriceLower] ||
-        MOCK_TOKEN_PRICES[token.address] ||
-        0
-
-      const usdValue = (Number(formatted) * price).toFixed(2)
-      setBalanceUsd(usdValue)
-      setError(null)
-    } catch (err) {
-      const errorMsg =
-        err instanceof Error ? err.message : 'Failed to format balance'
-      setError(errorMsg)
-      console.error('Balance calculation error:', err)
-    }
-  }, [token, balanceData, isBalanceLoading])
-
-  return { balance, balanceUsd, isLoading, error }
+  return {
+    balance,
+    balanceUsd,
+    isLoading: !!token && isLoading,
+    error: error ? (error as Error).message : null,
+  }
 }
 
 export function useMultipleTokenBalances(
@@ -101,74 +102,78 @@ export function useMultipleTokenBalances(
 ): TokenBalance[] {
   const { address } = useAccount()
   const targetAddress = userAddress || address
-  const [balances, setBalances] = useState<TokenBalance[]>([])
+  const prices = useTokenPrices()
 
-  useEffect(() => {
-    if (!tokens.length || !targetAddress) {
-      setBalances(
-        tokens.map(token => ({
+  const nativeToken = useMemo(() => tokens.find(isNative), [tokens])
+  const erc20Tokens = useMemo(() => tokens.filter((t) => !isNative(t)), [tokens])
+
+  const nativeBalance = useBalance({
+    address: targetAddress as `0x${string}` | undefined,
+    query: {
+      enabled: !!targetAddress && !!nativeToken,
+      refetchInterval: 15_000,
+    },
+  })
+
+  const contracts = useMemo(
+    () =>
+      erc20Tokens.map((t) => ({
+        address: t.address as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: 'balanceOf' as const,
+        args: [targetAddress as `0x${string}`] as const,
+      })),
+    [erc20Tokens, targetAddress]
+  )
+
+  const { data: contractsData } = useReadContracts({
+    contracts,
+    query: {
+      enabled: contracts.length > 0 && !!targetAddress,
+      refetchInterval: 15_000,
+    },
+  })
+
+  return useMemo(() => {
+    const result: TokenBalance[] = []
+    let erc20Index = 0
+    for (const token of tokens) {
+      if (isNative(token)) {
+        const data = nativeBalance.data
+        const b = data as { value?: bigint; formatted?: string } | undefined
+        const balance =
+          nativeBalance.isLoading || !data
+            ? '0'
+            : b?.formatted ?? (b?.value != null ? formatUnits(b.value, token.decimals) : '0')
+        const price = prices[token.symbol] ?? 0
+        const balanceUsd = (Number(balance) * price).toFixed(2)
+        result.push({
           token,
-          balance: '0',
-          balanceUsd: '0',
-          isLoading: false,
-          error: null,
-        }))
-      )
-      return
-    }
-
-    setBalances(
-      tokens.map(token => ({
-        token,
-        balance: '0',
-        balanceUsd: '0',
-        isLoading: true,
-        error: null,
-      }))
-    )
-
-    const fetchBalances = async () => {
-      const results = await Promise.all(
-        tokens.map(async token => {
-          try {
-            // In production, use wagmi readContract or batch call
-            // For now, simulate with mock data
-            const mockBalance = (Math.random() * 100).toFixed(2)
-            const tokenPriceLower = token.address.toLowerCase()
-            const price =
-              MOCK_TOKEN_PRICES[tokenPriceLower] ||
-              MOCK_TOKEN_PRICES[token.address] ||
-              0
-
-            const balanceUsd = (Number(mockBalance) * price).toFixed(2)
-
-            return {
-              token,
-              balance: mockBalance,
-              balanceUsd,
-              isLoading: false,
-              error: null,
-            }
-          } catch (err) {
-            return {
-              token,
-              balance: '0',
-              balanceUsd: '0',
-              isLoading: false,
-              error:
-                err instanceof Error
-                  ? err.message
-                  : 'Failed to fetch balance',
-            }
-          }
+          balance,
+          balanceUsd,
+          isLoading: nativeBalance.isLoading,
+          error: nativeBalance.error ? (nativeBalance.error as Error).message : null,
         })
-      )
-
-      setBalances(results)
+      } else {
+        const contractResult = contractsData?.[erc20Index]
+        const raw = contractResult?.result
+        const balance =
+          contractResult?.status === 'success' && raw !== undefined
+            ? formatUnits(raw as bigint, token.decimals)
+            : '0'
+        const isLoading = contractResult?.status === 'pending'
+        const price = prices[token.symbol] ?? 0
+        const balanceUsd = (Number(balance) * price).toFixed(2)
+        result.push({
+          token,
+          balance,
+          balanceUsd,
+          isLoading,
+          error: contractResult?.status === 'error' ? 'Failed to fetch' : null,
+        })
+        erc20Index++
+      }
     }
-
-    fetchBalances()
-  }, [tokens, targetAddress])
-
-  return balances
+    return result
+  }, [tokens, nativeBalance, contractsData, prices])
 }

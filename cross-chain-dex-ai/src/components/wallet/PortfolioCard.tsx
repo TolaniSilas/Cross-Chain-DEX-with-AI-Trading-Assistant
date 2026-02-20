@@ -1,11 +1,23 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useAccount, useChainId, useBalance } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { Copy, ExternalLink, Wallet as WalletIcon, TrendingUp, TrendingDown } from 'lucide-react'
+import Image from 'next/image'
+import { Copy, ExternalLink, Wallet as WalletIcon, TrendingUp, TrendingDown, Send, Download, DollarSign, MoreHorizontal, Sparkles, ArrowUpRight, Landmark, ArrowDownCircle, ArrowRightLeft } from 'lucide-react'
 import { supportedChains } from '@/config/chains'
 import { getTokensByChain, type Token } from '@/config/tokens'
+import useTokenBalance, { useMultipleTokenBalances } from '@/hooks/useTokenBalance'
+import { useTokenPrices } from '@/hooks/useTokenPrices'
+
+function getTokenIconPath(symbol: string): string {
+  const s = symbol.toUpperCase()
+  if (s === 'ETH') return '/icons/ethereum-eth-logo.svg'
+  if (s === 'MATIC') return '/icons/polygon-matic-logo.svg'
+  if (s === 'USDC') return '/icons/tokens/usd-coin-usdc-logo.svg'
+  if (s === 'USDT') return '/icons/tokens/tether-usdt-logo.svg'
+  return '/icons/cdex-ai-logo.png'
+}
 
 export default function PortfolioCard() {
   const { address, isConnected } = useAccount()
@@ -33,7 +45,7 @@ export default function PortfolioCard() {
   if (!isConnected || !address) {
     return (
       <div className="w-full px-4">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           {/* Connect Wallet Card */}
           <div className="max-w-4xl mx-auto">
             <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 backdrop-blur border border-blue-200 rounded-2xl sm:rounded-3xl shadow-lg p-6 sm:p-10 md:p-16 lg:p-20 text-center">
@@ -61,7 +73,7 @@ export default function PortfolioCard() {
   // Real wallet connected - show actual data
   return (
     <div className="w-full px-4">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* Portfolio Content */}
         <div className="bg-white/80 backdrop-blur border border-gray-200 rounded-2xl sm:rounded-3xl shadow-lg overflow-hidden">
           {/* Header with Wallet Info */}
@@ -139,7 +151,7 @@ export default function PortfolioCard() {
           </div>
 
           {/* Content */}
-          <div className="p-4 sm:p-6 md:p-8">
+          <div className="p-5 sm:p-7 md:p-10">
             {selectedTab === 'overview' && (
               <RealOverviewTab
                 address={address}
@@ -171,77 +183,111 @@ export default function PortfolioCard() {
 function DemoWallet() {
   const demoAddress = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb'
   const demoTokens = [
-    { symbol: 'ETH', name: 'Ethereum', balance: '0.033', value: 64.02, icon: '⟠' },
-    { symbol: 'ETH', name: 'Base ETH', balance: '0.015', value: 30.27, icon: '🔵' },
-    { symbol: 'USDC', name: 'USD Coin', balance: '8.39', value: 8.39, icon: '💵' },
+    { symbol: 'ETH', name: 'Ethereum', balance: '0.033', value: 64.02 },
+    { symbol: 'MATIC', name: 'Polygon', balance: '12.80', value: 6.40 },
+    { symbol: 'USDC', name: 'USD Coin', balance: '8.39', value: 8.39 },
+    { symbol: 'USDT', name: 'Tether USD', balance: '4.00', value: 4.00 },
+  ]
+  const demoTotal = demoTokens.reduce((sum, t) => sum + t.value, 0)
+  const demoActivity = [
+    { text: 'Received ETH', date: 'Today' },
+    { text: 'Swapped USDC', date: 'Yesterday' },
+    { text: 'Bridged MATIC', date: '2d ago' },
   ]
 
   return (
     <div className="max-w-5xl mx-auto w-full">
-      <div className="bg-white/50 backdrop-blur border border-gray-200 rounded-2xl sm:rounded-3xl shadow-md overflow-hidden">
-        {/* Demo Header */}
-        <div className="p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100/50">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-400 to-purple-400 rounded-full flex items-center justify-center shrink-0">
-              <span className="text-base sm:text-xl">✨</span>
+      <div className="bg-white/60 backdrop-blur border border-blue-100 rounded-2xl sm:rounded-3xl shadow-md overflow-hidden">
+        <div className="p-4 sm:p-6 border-b border-blue-100 bg-white/70">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-500 rounded-full flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold text-gray-900 text-sm sm:text-base">Demo wallet</p>
+                <code className="text-xs sm:text-sm text-gray-600 truncate block">{demoAddress.slice(0, 10)}...{demoAddress.slice(-4)}</code>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="font-semibold text-gray-900 text-sm sm:text-base">Demo wallet</p>
-              <code className="text-xs sm:text-sm text-gray-600 truncate block">{demoAddress.slice(0, 10)}...{demoAddress.slice(-4)}</code>
-            </div>
+            <span className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">All networks</span>
           </div>
         </div>
 
-        {/* Demo Content */}
-        <div className="p-4 sm:p-6">
-          {/* Demo Portfolio Value */}
-          <div className="mb-4 sm:mb-6">
-            <p className="text-xs sm:text-sm text-gray-600 mb-0.5 sm:mb-1">Portfolio Value</p>
-            <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-1 sm:mb-2 tabular-nums">$253.63</h3>
-            <div className="flex items-center gap-2">
-              <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-600 shrink-0" />
-              <span className="text-xs sm:text-sm font-semibold text-red-600">
-                $4.67 (1.72%)
-              </span>
+        <div className="p-4 sm:p-6 md:p-8">
+          <div className="grid lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <p className="text-xs sm:text-sm text-gray-600 mb-1">Portfolio value</p>
+              <h3 className="text-3xl sm:text-4xl font-bold text-gray-900 tabular-nums">${demoTotal.toFixed(2)}</h3>
+              <div className="flex items-center gap-2 mt-1 mb-4">
+                <TrendingUp className="w-4 h-4 text-green-600" />
+                <span className="text-xs sm:text-sm font-semibold text-green-600">+$0.53 (0.20%)</span>
+              </div>
+              <LivePriceChart symbol="ETH" />
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Quick Actions</h4>
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-4">
+                <button className="p-3 bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-200 transition-colors text-center flex flex-col items-center justify-center">
+                  <Send className="w-6 h-6 text-blue-600 mb-1" />
+                  <p className="text-xs font-semibold text-blue-900">Send</p>
+                </button>
+                <button className="p-3 bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-200 transition-colors text-center flex flex-col items-center justify-center">
+                  <Download className="w-6 h-6 text-blue-600 mb-1" />
+                  <p className="text-xs font-semibold text-blue-900">Receive</p>
+                </button>
+                <button className="p-3 bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-200 transition-colors text-center flex flex-col items-center justify-center">
+                  <DollarSign className="w-6 h-6 text-blue-600 mb-1" />
+                  <p className="text-xs font-semibold text-blue-900">Buy</p>
+                </button>
+                <button className="p-3 bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-200 transition-colors text-center flex flex-col items-center justify-center">
+                  <MoreHorizontal className="w-6 h-6 text-blue-600 mb-1" />
+                  <p className="text-xs font-semibold text-blue-900">More</p>
+                </button>
+              </div>
+              <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
+                <p className="text-xs text-gray-600 mb-1">Tracked tokens</p>
+                <p className="text-lg font-semibold text-gray-900">{demoTokens.length}</p>
+              </div>
             </div>
           </div>
 
-          {/* Demo Chart */}
-          <div className="h-28 sm:h-36 md:h-40 bg-gradient-to-br from-red-50 to-red-100/30 rounded-xl sm:rounded-2xl border border-red-200 mb-4 sm:mb-6 flex items-center justify-center">
-            <p className="text-gray-500 text-xs sm:text-sm italic">Demo portfolio chart</p>
-          </div>
-
-          {/* Demo Tokens */}
-          <div>
-            <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Tokens</h4>
-            <div className="space-y-2 sm:space-y-3">
-              {demoTokens.map((token, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between gap-3 p-3 sm:p-4 bg-gray-50/50 rounded-xl sm:rounded-2xl border border-gray-200"
-                >
-                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center text-sm sm:text-xl shrink-0">
-                      {token.icon}
+          <div className="grid lg:grid-cols-2 gap-6 mt-4">
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">Tokens</h4>
+              <div className="space-y-2">
+                {demoTokens.map((token, index) => (
+                  <div key={index} className="flex items-center justify-between gap-3 p-3 bg-gray-50/70 rounded-xl border border-gray-200">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Image src={getTokenIconPath(token.symbol)} alt={`${token.symbol} logo`} width={24} height={24} className="w-6 h-6 rounded-full object-contain" />
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm text-gray-900">{token.symbol}</p>
+                        <p className="text-xs text-gray-600">{token.name}</p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">{token.symbol}</p>
-                      <p className="text-xs sm:text-sm text-gray-600 truncate">{token.name}</p>
+                    <div className="text-right">
+                      <p className="font-semibold text-sm text-gray-900 tabular-nums">{token.balance} {token.symbol}</p>
+                      <p className="text-xs text-gray-600 tabular-nums">${token.value.toFixed(2)}</p>
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-semibold text-gray-900 text-sm sm:text-base tabular-nums">{token.balance} {token.symbol}</p>
-                    <p className="text-xs sm:text-sm text-gray-600 tabular-nums">${token.value.toFixed(2)}</p>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">Recent activity</h4>
+              <div className="space-y-2">
+                {demoActivity.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 bg-gray-50/70 rounded-xl border border-gray-200">
+                    <p className="text-sm font-medium text-gray-800">{item.text}</p>
+                    <span className="text-xs text-gray-500">{item.date}</span>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Demo Info */}
-          <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-xl sm:rounded-2xl text-center">
+          <div className="mt-5 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-xl text-center">
             <p className="text-xs sm:text-sm text-blue-800 leading-relaxed">
-              <span className="font-semibold">Note:</span> This is demo data. Connect your wallet to see your real portfolio.
+              <span className="font-semibold">Demo mode:</span> connect wallet to fetch live balances for your address.
             </p>
           </div>
         </div>
@@ -263,18 +309,16 @@ function RealOverviewTab({
   currentChain: any
 }) {
   const { data: nativeBalance } = useBalance({ address: address as `0x${string}` })
-  const [totalValue, setTotalValue] = useState(0)
-
-  useEffect(() => {
-    // Calculate total portfolio value from real balances
-    if (nativeBalance) {
-      const ethValue = parseFloat(nativeBalance.formatted) * 1956 // Mock ETH price
-      setTotalValue(ethValue)
-    }
-  }, [nativeBalance])
+  const tokenBalances = useMultipleTokenBalances(chainTokens, address)
+  const prices = useTokenPrices()
+  const nativeSymbol = currentChain?.nativeCurrency?.symbol ?? 'ETH'
+  const nativeTokenData = tokenBalances.find((tb) => tb.token.symbol === nativeSymbol)
+  const totalValue = useMemo(() => {
+    return tokenBalances.reduce((sum, tb) => sum + Number(tb.balanceUsd), 0)
+  }, [tokenBalances])
 
   return (
-    <div className="grid lg:grid-cols-3 gap-6 sm:gap-8">
+    <div className="grid lg:grid-cols-3 gap-8 sm:gap-10">
       {/* Left: Real Portfolio Value */}
       <div className="lg:col-span-2">
         <div className="mb-5 sm:mb-8">
@@ -289,13 +333,36 @@ function RealOverviewTab({
           </div>
         </div>
 
-        {/* Chart Placeholder - integrate real chart library */}
-        <div className="h-40 sm:h-52 md:h-64 bg-gradient-to-br from-blue-50 to-blue-100/30 rounded-xl sm:rounded-2xl border border-blue-200 flex items-center justify-center mb-5 sm:mb-8">
-          <p className="text-gray-500 text-xs sm:text-sm text-center px-2">Live portfolio chart (connect chart library)</p>
+        <LivePriceChart symbol={nativeSymbol} />
+
+        <div className="mt-5">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm sm:text-base font-semibold text-gray-700">Tracked tokens</h4>
+            <span className="text-xs text-blue-700 bg-blue-100 rounded-full px-2 py-1">{chainTokens.length} tokens</span>
+          </div>
+          <div className="border border-gray-200 rounded-xl overflow-hidden">
+            <div className="hidden sm:grid sm:grid-cols-[1.8fr_1fr_1fr_1.1fr] gap-4 px-4 md:px-6 py-3 bg-gray-50 text-xs font-semibold text-gray-700">
+              <div className="text-left">Token</div>
+              <div className="text-center">Price</div>
+              <div className="text-center">Balance</div>
+              <div className="text-center">Value</div>
+            </div>
+            <div className="divide-y divide-gray-200">
+              {chainTokens.map((token) => (
+                <RealTokenRow
+                  key={token.address}
+                  token={token}
+                  address={address}
+                  price={prices[token.symbol] ?? 0}
+                  blockExplorer={currentChain?.blockExplorers?.default}
+                />
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Real Native Balance */}
-        <div className="p-4 sm:p-6 bg-blue-50 rounded-xl sm:rounded-2xl border border-blue-200">
+        <div className="mt-6 p-5 sm:p-7 bg-blue-50 rounded-xl sm:rounded-2xl border border-blue-200">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
               <p className="text-xs sm:text-sm text-blue-800 mb-0.5 sm:mb-1">Native Balance</p>
@@ -306,7 +373,7 @@ function RealOverviewTab({
             <div className="sm:text-right">
               <p className="text-xs sm:text-sm text-blue-800 mb-0.5 sm:mb-1">USD Value</p>
               <p className="text-lg sm:text-2xl font-bold text-blue-900 tabular-nums">
-                ${totalValue.toFixed(2)}
+                ${Number(nativeTokenData?.balanceUsd ?? 0).toFixed(2)}
               </p>
             </div>
           </div>
@@ -316,22 +383,39 @@ function RealOverviewTab({
       {/* Right: Quick Actions */}
       <div>
         <h4 className="text-sm sm:text-base font-semibold text-gray-700 mb-3 sm:mb-4">Quick Actions</h4>
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-5 sm:mb-8">
-          <button className="p-3 sm:p-5 bg-blue-50 hover:bg-blue-100 rounded-xl sm:rounded-2xl border border-blue-200 transition-colors text-center">
-            <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">📤</div>
-            <p className="text-xs sm:text-sm font-semibold text-blue-900">Send</p>
+        <div className="space-y-3 mb-5 sm:mb-8">
+          <button className="w-full p-4 bg-blue-50 hover:bg-blue-100 rounded-xl sm:rounded-2xl border border-blue-200 transition-colors text-left">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                <Landmark className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-blue-900">Buy crypto</p>
+                <p className="text-xs text-blue-700/80">Purchase with a debit card or bank account.</p>
+              </div>
+            </div>
           </button>
-          <button className="p-3 sm:p-5 bg-blue-50 hover:bg-blue-100 rounded-xl sm:rounded-2xl border border-blue-200 transition-colors text-center">
-            <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">📥</div>
-            <p className="text-xs sm:text-sm font-semibold text-blue-900">Receive</p>
+          <button className="w-full p-4 bg-blue-50 hover:bg-blue-100 rounded-xl sm:rounded-2xl border border-blue-200 transition-colors text-left">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                <ArrowDownCircle className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-blue-900">Receive crypto</p>
+                <p className="text-xs text-blue-700/80">Move funds from another wallet.</p>
+              </div>
+            </div>
           </button>
-          <button className="p-3 sm:p-5 bg-blue-50 hover:bg-blue-100 rounded-xl sm:rounded-2xl border border-blue-200 transition-colors text-center">
-            <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">💰</div>
-            <p className="text-xs sm:text-sm font-semibold text-blue-900">Buy</p>
-          </button>
-          <button className="p-3 sm:p-5 bg-blue-50 hover:bg-blue-100 rounded-xl sm:rounded-2xl border border-blue-200 transition-colors text-center">
-            <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">•••</div>
-            <p className="text-xs sm:text-sm font-semibold text-blue-900">More</p>
+          <button className="w-full p-4 bg-blue-50 hover:bg-blue-100 rounded-xl sm:rounded-2xl border border-blue-200 transition-colors text-left">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                <ArrowRightLeft className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-blue-900">Transfer</p>
+                <p className="text-xs text-blue-700/80">Move funds from a trading platform.</p>
+              </div>
+            </div>
           </button>
         </div>
 
@@ -340,8 +424,92 @@ function RealOverviewTab({
           <p className="text-xs sm:text-sm text-gray-600 mb-1 sm:mb-2">Connected to</p>
           <p className="text-base sm:text-lg font-semibold text-gray-900">{currentChain?.name}</p>
           <p className="text-xs text-gray-500 mt-1">Chain ID: {chainId}</p>
+          <a
+            href={`${currentChain?.blockExplorers?.default?.url}/address/${address}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 mt-3 text-xs text-blue-600 hover:text-blue-700 font-medium"
+          >
+            View address on explorer
+            <ArrowUpRight className="w-3 h-3" />
+          </a>
+        </div>
+
+        <div className="mt-3 p-3 sm:p-4 bg-white border border-gray-200 rounded-xl sm:rounded-2xl">
+          <p className="text-xs sm:text-sm text-gray-600 mb-2">Address bound data</p>
+          <p className="text-sm font-bold text-blue-700 break-all">{address}</p>
+          <p className="text-xs text-gray-500 mt-1">
+            Balances are fetched live for this connected address only.
+          </p>
         </div>
       </div>
+    </div>
+  )
+}
+
+function LivePriceChart({ symbol }: { symbol: string }) {
+  const [points, setPoints] = useState<Array<{ t: number; p: number }>>([])
+
+  useEffect(() => {
+    let cancelled = false
+    const fetchChart = async () => {
+      try {
+        const res = await fetch(`/api/prices/history?symbol=${symbol}&days=1`)
+        const data = await res.json()
+        if (!cancelled && Array.isArray(data.points)) {
+          setPoints(data.points)
+        }
+      } catch {
+        if (!cancelled) setPoints([])
+      }
+    }
+    fetchChart()
+    const id = setInterval(fetchChart, 60_000)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+    }
+  }, [symbol])
+
+  const chartData = points.length > 0 ? points : [{ t: 0, p: 0 }, { t: 1, p: 0 }]
+  const min = Math.min(...chartData.map((d) => d.p))
+  const max = Math.max(...chartData.map((d) => d.p))
+  const range = max - min || 1
+
+  const coords = chartData
+    .map((d, i) => {
+      const x = (i / (chartData.length - 1 || 1)) * 100
+      const y = 100 - ((d.p - min) / range) * 100
+      return `${x},${y}`
+    })
+    .join(' ')
+
+  const start = chartData[0]?.p ?? 0
+  const end = chartData[chartData.length - 1]?.p ?? 0
+  const changePct = start > 0 ? ((end - start) / start) * 100 : 0
+  const positive = changePct >= 0
+
+  return (
+    <div className="mb-5 sm:mb-8 p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-blue-100/30 rounded-xl sm:rounded-2xl border border-blue-200">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs sm:text-sm font-semibold text-gray-700">{symbol} 24h</p>
+        <p className={`text-xs sm:text-sm font-semibold ${positive ? 'text-green-600' : 'text-red-600'}`}>
+          {positive ? '+' : ''}{changePct.toFixed(2)}%
+        </p>
+      </div>
+      <div className="h-32 sm:h-40 md:h-44">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
+          <polyline
+            fill="none"
+            stroke={positive ? '#16a34a' : '#dc2626'}
+            strokeWidth="2.5"
+            points={coords}
+          />
+        </svg>
+      </div>
+      {points.length === 0 && (
+        <p className="text-[11px] sm:text-xs text-gray-500 mt-1">Waiting for live chart data...</p>
+      )}
     </div>
   )
 }
@@ -356,6 +524,8 @@ function RealTokensTab({
   chainTokens: Token[]
   currentChain: any
 }) {
+  const prices = useTokenPrices()
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 sm:mb-6">
@@ -367,11 +537,11 @@ function RealTokensTab({
 
       {/* Table - card layout on mobile */}
       <div className="border border-gray-200 rounded-xl sm:rounded-2xl overflow-hidden">
-        <div className="hidden sm:grid grid-cols-4 gap-4 px-4 md:px-6 py-3 md:py-4 bg-gray-50 text-xs md:text-sm font-semibold text-gray-700">
-          <div>Token</div>
-          <div className="text-right">Price</div>
-          <div className="text-right">Balance</div>
-          <div className="text-right">Value</div>
+        <div className="hidden sm:grid sm:grid-cols-[1.8fr_1fr_1fr_1.1fr] gap-4 px-4 md:px-6 py-3 md:py-4 bg-gray-50 text-xs md:text-sm font-semibold text-gray-700">
+          <div className="text-left">Token</div>
+          <div className="text-center">Price</div>
+          <div className="text-center">Balance</div>
+          <div className="text-center">Value</div>
         </div>
 
         <div className="divide-y divide-gray-200">
@@ -380,6 +550,7 @@ function RealTokensTab({
               key={token.address}
               token={token}
               address={address}
+              price={prices[token.symbol] ?? 0}
               blockExplorer={currentChain?.blockExplorers?.default}
             />
           ))}
@@ -389,43 +560,50 @@ function RealTokensTab({
   )
 }
 
-// Real Token Row - fetches actual balance
+// Real Token Row - fetches actual balance and live price
 function RealTokenRow({
   token,
   address,
+  price,
   blockExplorer,
 }: {
   token: Token
   address: string
+  price: number
   blockExplorer?: any
 }) {
-  // Fetch real token balance here
-  const balance = '0.00' // Replace with actual balance fetch
-  const price = '1,956.58' // Replace with actual price fetch
+  const { balance, balanceUsd, isLoading } = useTokenBalance(token, address, price)
+  const priceStr = price >= 1 ? price.toFixed(2) : price.toFixed(4)
 
   return (
-    <div className="flex flex-col sm:grid sm:grid-cols-4 gap-2 sm:gap-4 px-4 py-3 sm:py-4 hover:bg-gray-50 transition-colors">
+    <div className="flex flex-col sm:grid sm:grid-cols-[1.8fr_1fr_1fr_1.1fr] gap-2 sm:gap-4 px-4 md:px-6 py-3 sm:py-4 hover:bg-gray-50 transition-colors">
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-        <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-200 rounded-full flex items-center justify-center shrink-0">
-          <span className="text-xs sm:text-sm font-bold text-blue-600">{token.symbol[0]}</span>
+        <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center shrink-0 overflow-hidden">
+          <Image
+            src={getTokenIconPath(token.symbol)}
+            alt={`${token.symbol} logo`}
+            width={24}
+            height={24}
+            className="w-5 h-5 sm:w-6 sm:h-6 rounded-full object-contain"
+          />
         </div>
         <div className="min-w-0">
           <p className="font-semibold text-gray-900 text-sm sm:text-base">{token.symbol}</p>
-          <p className="text-xs sm:text-sm text-gray-600 truncate">{token.name}</p>
+          <p className="text-xs sm:text-sm text-gray-600">{token.name}</p>
         </div>
       </div>
-      <div className="flex justify-between sm:justify-end sm:text-right text-sm">
+      <div className="flex justify-between sm:justify-center sm:text-center text-sm">
         <span className="sm:hidden text-gray-500">Price</span>
-        <p className="font-semibold text-gray-900">${price}</p>
+        <p className="font-semibold text-gray-900">${priceStr}</p>
       </div>
-      <div className="flex justify-between sm:justify-end sm:text-right text-sm">
+      <div className="flex justify-between sm:justify-center sm:text-center text-sm">
         <span className="sm:hidden text-gray-500">Balance</span>
-        <p className="font-semibold text-gray-900 tabular-nums">{balance}</p>
+        <p className="font-semibold text-gray-900 tabular-nums">{isLoading ? '...' : balance}</p>
       </div>
-      <div className="flex justify-between sm:justify-end items-center gap-2 text-sm">
+      <div className="flex justify-between sm:justify-center items-center gap-2 text-sm">
         <span className="sm:hidden text-gray-500">Value</span>
-        <div className="flex items-center gap-2">
-          <p className="font-semibold text-gray-900">$0.00</p>
+        <div className="flex items-center sm:justify-center gap-2 min-w-[92px]">
+          <p className="font-semibold text-gray-900 tabular-nums text-center min-w-[56px]">${balanceUsd}</p>
           {blockExplorer && (
             <a
               href={`${blockExplorer.url}/token/${token.address}`}
