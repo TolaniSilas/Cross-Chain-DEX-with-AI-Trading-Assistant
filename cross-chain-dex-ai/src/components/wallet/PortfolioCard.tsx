@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useAccount, useChainId, useBalance } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Copy, ExternalLink, Wallet as WalletIcon, TrendingUp, TrendingDown, Send, Download, DollarSign, MoreHorizontal, Sparkles, ArrowUpRight, Landmark, ArrowDownCircle, ArrowRightLeft, ChevronDown, X } from 'lucide-react'
+import { Copy, ExternalLink, Wallet as WalletIcon, TrendingUp, TrendingDown, Send, Download, DollarSign, MoreHorizontal, Sparkles, ArrowUpRight, Landmark, ArrowDownCircle, ArrowRightLeft, ChevronDown, X, QrCode, ArrowLeft } from 'lucide-react'
 import { supportedChains } from '@/config/chains'
 import { getTokensByChain, type Token } from '@/config/tokens'
 import useTokenBalance, { useMultipleTokenBalances } from '@/hooks/useTokenBalance'
@@ -26,6 +26,8 @@ export default function PortfolioCard() {
   const [copiedAddress, setCopiedAddress] = useState(false)
   const [selectedTab, setSelectedTab] = useState<'overview' | 'tokens' | 'activity'>('overview')
   const [showBuyPanel, setShowBuyPanel] = useState(false)
+  const [showReceivePanel, setShowReceivePanel] = useState(false)
+  const [showTransferPanel, setShowTransferPanel] = useState(false)
 
   const currentChain = useMemo(() => {
     return supportedChains.find(c => c.id === chainId)
@@ -161,6 +163,8 @@ export default function PortfolioCard() {
                 chainTokens={chainTokens}
                 currentChain={currentChain}
                 onOpenBuyPanel={() => setShowBuyPanel(true)}
+                onOpenReceivePanel={() => setShowReceivePanel(true)}
+                onOpenTransferPanel={() => setShowTransferPanel(true)}
               />
             )}
 
@@ -180,26 +184,134 @@ export default function PortfolioCard() {
 
         {/* Buy crypto panel modal - Swap / Buy / Sell only */}
         {showBuyPanel && (
-          <BuyCryptoPanel onClose={() => setShowBuyPanel(false)} />
+          <BuyCryptoPanel chainTokens={chainTokens} onClose={() => setShowBuyPanel(false)} />
+        )}
+
+        {/* Receive crypto modal */}
+        {showReceivePanel && address && (
+          <ReceiveCryptoPanel
+            address={address}
+            currentChain={currentChain}
+            onClose={() => setShowReceivePanel(false)}
+          />
+        )}
+
+        {/* Transfer modal */}
+        {showTransferPanel && (
+          <TransferPanel onClose={() => setShowTransferPanel(false)} />
         )}
       </div>
     </div>
   )
 }
 
+const BINANCE_BUY_URL = 'https://www.binance.com/en/crypto/BUY'
+
 // Buy crypto panel: only Swap, Buy, Sell tabs (opens from Quick Action "Buy crypto")
-function BuyCryptoPanel({ onClose }: { onClose: () => void }) {
+function BuyCryptoPanel({ chainTokens, onClose }: { chainTokens: Token[]; onClose: () => void }) {
   const [panelTab, setPanelTab] = useState<'swap' | 'buy' | 'sell'>('buy')
-  const [fiatAmount, setFiatAmount] = useState('0')
+  const [fiatAmount, setFiatAmount] = useState('')
   const [selectedCrypto, setSelectedCrypto] = useState('ETH')
-  const [currencyLabel, setCurrencyLabel] = useState('USD')
+  const [currencyLabel] = useState('USD')
+  const [tokenDropdownOpen, setTokenDropdownOpen] = useState(false)
+  const [showBinanceStep, setShowBinanceStep] = useState(false)
+  const tokenDropdownRef = useRef<HTMLDivElement>(null)
 
   const quickAmounts = ['100', '300', '1000']
+
+  // Unique tokens by symbol (project tokens for current chain)
+  const buyTokens = useMemo(() => {
+    const seen = new Set<string>()
+    return chainTokens.filter((t) => {
+      if (seen.has(t.symbol)) return false
+      seen.add(t.symbol)
+      return true
+    })
+  }, [chainTokens])
+
+  const selectedToken = buyTokens.find((t) => t.symbol === selectedCrypto) ?? buyTokens[0]
+
+  useEffect(() => {
+    if (buyTokens.length > 0 && !buyTokens.some((t) => t.symbol === selectedCrypto)) {
+      setSelectedCrypto(buyTokens[0].symbol)
+    }
+  }, [buyTokens, selectedCrypto])
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (tokenDropdownRef.current && !tokenDropdownRef.current.contains(e.target as Node)) {
+        setTokenDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleAmountChange = (value: string) => {
+    const sanitized = value.replace(/[^0-9.]/g, '')
+    const parts = sanitized.split('.')
+    if (parts.length > 2) return
+    if (parts[1]?.length > 2) return
+    setFiatAmount(sanitized)
+  }
+
+  const displayAmount = fiatAmount === '' ? '0' : fiatAmount
+  const hasAmount = fiatAmount !== '' && parseFloat(fiatAmount) > 0
+
+  // "Complete transaction with Binance" view when user clicks Continue (same style as Coinbase step, no Get help)
+  if (showBinanceStep) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/50" aria-hidden onClick={onClose} />
+        <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <button
+              type="button"
+              onClick={() => setShowBinanceStep(false)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="Back"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors ml-auto"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
+
+          <div className="p-6 sm:p-8 text-center">
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden bg-blue-100 shrink-0">
+                <Image
+                  src="/icons/binance-svgrepo-com.svg"
+                  alt="Binance"
+                  width={40}
+                  height={40}
+                  className="w-10 h-10 object-contain [filter:invert(27%)_sepia(98%)_saturate(1000%)_hue-rotate(210deg)]"
+                />
+              </div>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-3">Complete transaction with Binance</h2>
+            <p className="text-sm text-gray-600 mb-8 leading-relaxed">
+              Go to the Binance tab to continue. It&apos;s safe to close this modal now.
+            </p>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              By continuing, you acknowledge that you&apos;ll be subject to the Terms of Service and Privacy Policy with Binance, as applicable.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" aria-hidden onClick={onClose} />
-      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-200 overflow-visible">
         <div className="flex items-center justify-end p-3 border-b border-gray-100">
           <button
             type="button"
@@ -242,9 +354,23 @@ function BuyCryptoPanel({ onClose }: { onClose: () => void }) {
                   <ChevronDown className="w-4 h-4" />
                 </button>
               </div>
-              <p className="text-3xl font-semibold text-gray-900 mb-4 tabular-nums">
-                ${fiatAmount}
-              </p>
+              <div className="mb-4">
+                <label htmlFor="buy-fiat-amount" className="sr-only">
+                  Amount in USD
+                </label>
+                <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-3 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20">
+                  <span className="text-2xl sm:text-3xl font-semibold text-gray-900 tabular-nums">$</span>
+                  <input
+                    id="buy-fiat-amount"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={fiatAmount}
+                    onChange={(e) => handleAmountChange(e.target.value)}
+                    className="flex-1 min-w-0 text-2xl sm:text-3xl font-semibold text-gray-900 bg-transparent border-none outline-none tabular-nums placeholder:text-gray-400"
+                  />
+                </div>
+              </div>
               <div className="flex gap-2 mb-5">
                 {quickAmounts.map((amt) => (
                   <button
@@ -257,26 +383,74 @@ function BuyCryptoPanel({ onClose }: { onClose: () => void }) {
                   </button>
                 ))}
               </div>
-              <div className="flex items-center justify-between p-4 rounded-xl border border-gray-200 bg-gray-50/50 mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
-                    <Image
-                      src={getTokenIconPath(selectedCrypto)}
-                      alt=""
-                      width={20}
-                      height={20}
-                      className="rounded-full object-contain"
-                    />
+              <div className="relative" ref={tokenDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setTokenDropdownOpen((o) => !o)}
+                  className="w-full flex items-center justify-between p-4 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-gray-100/50 transition-colors mb-4"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden shrink-0">
+                      <Image
+                        src={getTokenIconPath(selectedToken?.symbol ?? selectedCrypto)}
+                        alt=""
+                        width={20}
+                        height={20}
+                        className="rounded-full object-contain"
+                      />
+                    </div>
+                    <span className="font-semibold text-gray-900">{selectedToken?.symbol ?? selectedCrypto}</span>
                   </div>
-                  <span className="font-semibold text-gray-900">{selectedCrypto}</span>
-                </div>
-                <ChevronDown className="w-5 h-5 text-gray-500" />
+                  <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${tokenDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {tokenDropdownOpen && buyTokens.length > 0 && (
+                  <div className="absolute left-0 right-0 bottom-full z-10 mb-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-hidden flex flex-col">
+                    <p className="px-4 py-3 text-sm font-semibold text-gray-900 border-b border-gray-100 shrink-0">
+                      Select a token
+                    </p>
+                    <div className="overflow-auto py-1">
+                    {buyTokens.map((token) => (
+                      <button
+                        key={`${token.chainId}-${token.symbol}-${token.address}`}
+                        type="button"
+                        onClick={() => {
+                          setSelectedCrypto(token.symbol)
+                          setTokenDropdownOpen(false)
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-3 hover:bg-gray-50 text-left transition-colors"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden shrink-0">
+                          <Image
+                            src={getTokenIconPath(token.symbol)}
+                            alt=""
+                            width={20}
+                            height={20}
+                            className="rounded-full object-contain"
+                          />
+                        </div>
+                        <span className="font-semibold text-gray-900">{token.symbol}</span>
+                        <span className="text-xs text-gray-500">{token.name}</span>
+                      </button>
+                    ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <button
                 type="button"
-                className="w-full py-3 px-4 rounded-xl bg-gray-200 text-gray-600 font-medium text-sm hover:bg-gray-300 transition-colors"
+                onClick={() => {
+                  if (hasAmount) {
+                    window.open(BINANCE_BUY_URL, '_blank', 'noopener,noreferrer')
+                    setShowBinanceStep(true)
+                  }
+                }}
+                className={`w-full py-3 px-4 rounded-xl font-medium text-sm transition-colors ${
+                  hasAmount
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                }`}
               >
-                Enter an amount
+                {hasAmount ? 'Continue' : 'Enter an amount'}
               </button>
             </>
           )}
@@ -300,6 +474,254 @@ function BuyCryptoPanel({ onClose }: { onClose: () => void }) {
               <p className="text-gray-600 text-sm">Sell crypto for fiat. (Coming soon.)</p>
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Receive crypto modal: title, description, address block (copy + QR). Clicking QR opens "Ethereum Address" view. No Get help.
+function ReceiveCryptoPanel({
+  address,
+  currentChain,
+  onClose,
+}: {
+  address: string
+  currentChain: { name?: string } | undefined
+  onClose: () => void
+}) {
+  const [copied, setCopied] = useState(false)
+  const [showQrDetailView, setShowQrDetailView] = useState(false)
+  const truncated = `${address.slice(0, 6)}...${address.slice(-4)}`
+  const networkLabel = currentChain?.name ? `${currentChain.name}` : 'Ethereum'
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&color=2563eb&bgcolor=FFFFFF&data=${encodeURIComponent(address)}`
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(address)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  // "Ethereum Address" view when user clicks QR: back arrow, title, QR, address box. No Get help, no "Use this address on 16 networks".
+  if (showQrDetailView) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+          className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+          aria-hidden
+          onClick={() => setShowQrDetailView(false)}
+        />
+        <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-4 sm:px-5 sm:py-5 border-b border-gray-100">
+            <button
+              type="button"
+              onClick={() => setShowQrDetailView(false)}
+              className="p-2.5 -ml-1 hover:bg-gray-100 rounded-xl transition-colors justify-self-start"
+              aria-label="Back"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 text-center truncate">
+              Ethereum Address
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2.5 hover:bg-gray-100 rounded-xl transition-colors justify-self-end"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
+
+          <div className="p-6 sm:p-8">
+            <div className="flex justify-center mb-8">
+              <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <img
+                  src={qrUrl}
+                  alt="QR code for Ethereum address"
+                  className="w-52 h-52 sm:w-60 sm:h-60 rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-gray-50/50 p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Ethereum address</span>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="p-2.5 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-colors shrink-0"
+                  aria-label="Copy address"
+                >
+                  <Copy className="w-4 h-4 text-gray-600" />
+                </button>
+              </div>
+              <p className="font-mono text-sm sm:text-base text-gray-900 break-all leading-relaxed">
+                {address}
+              </p>
+            </div>
+            {copied && (
+              <p className="text-sm text-green-600 text-center mt-4 font-medium">Address copied!</p>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" aria-hidden onClick={onClose} />
+      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+        <div className="flex items-center justify-end p-3 border-b border-gray-100">
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
+
+        <div className="p-5 sm:p-6">
+          <h2 className="text-xl font-bold text-gray-900 text-center mb-1">Receive crypto</h2>
+          <p className="text-sm text-gray-600 text-center mb-6">
+            Fund your wallet by transferring crypto from another wallet or account
+          </p>
+
+          <div className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 bg-gray-50/50 mb-5">
+            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+              <WalletIcon className="w-5 h-5 text-blue-600" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-mono font-semibold text-gray-900 truncate">{truncated}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{networkLabel}</p>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="p-2.5 rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors"
+                aria-label="Copy address"
+              >
+                <Copy className="w-4 h-4 text-gray-700" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowQrDetailView(true)}
+                className="p-2.5 rounded-lg bg-gray-200 hover:bg-gray-300 transition-colors"
+                aria-label="Show QR code"
+              >
+                <QrCode className="w-4 h-4 text-gray-700" />
+              </button>
+            </div>
+          </div>
+          {copied && (
+            <p className="text-xs text-green-600 text-center -mt-3 mb-2">Address copied!</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Transfer modal: initial view (Transfer + Coinbase option). Clicking Coinbase shows "Complete transaction with Coinbase". Back arrow, no Get help.
+function TransferPanel({ onClose }: { onClose: () => void }) {
+  const [showCoinbaseStep, setShowCoinbaseStep] = useState(false)
+
+  if (showCoinbaseStep) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/50" aria-hidden onClick={onClose} />
+        <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <button
+              type="button"
+              onClick={() => setShowCoinbaseStep(false)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="Back"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors ml-auto"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
+
+          <div className="p-6 sm:p-8 text-center">
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden bg-gray-100 shrink-0">
+                <Image
+                  src="/icons/coinbase-v2-svgrepo-com.svg"
+                  alt="Coinbase"
+                  width={40}
+                  height={40}
+                  className="w-10 h-10 object-contain"
+                />
+              </div>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-3">Complete transaction with Coinbase</h2>
+            <p className="text-sm text-gray-600 mb-8 leading-relaxed">
+              Go to the Coinbase tab to continue. It&apos;s safe to close this modal now.
+            </p>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              By continuing, you acknowledge that you&apos;ll be subject to the Terms of Service and Privacy Policy with Coinbase, as applicable.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" aria-hidden onClick={onClose} />
+      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+        <div className="flex items-center justify-end p-3 border-b border-gray-100">
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
+
+        <div className="p-5 sm:p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">Transfer</h2>
+          <p className="text-sm text-gray-600 mb-6 text-center">Move funds from a trading platform.</p>
+
+          <button
+            type="button"
+            onClick={() => {
+              window.open(
+                'https://pay.coinbase.com/landing?defaultExperience=send&partnerUserId=e8f9c752-14f3-4975-8ba5-49906a4e9d7e&redirectUrl=https%3A%2F%2Fapp.uniswap.org%2Fbuy&sessionToken=MWYxMGZjNDAtOGFkNS02MmFlLWJkN2UtNWU4M2E3YWU3ZDMx',
+                '_blank',
+                'noopener,noreferrer'
+              )
+              setShowCoinbaseStep(true)
+            }}
+            className="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors text-left"
+          >
+            <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 overflow-hidden bg-gray-100">
+              <Image
+                src="/icons/coinbase-v2-svgrepo-com.svg"
+                alt="Coinbase"
+                width={24}
+                height={24}
+                className="w-6 h-6 object-contain"
+              />
+            </div>
+            <span className="font-semibold text-gray-900">Coinbase</span>
+          </button>
         </div>
       </div>
     </div>
@@ -430,12 +852,16 @@ function RealOverviewTab({
   chainTokens,
   currentChain,
   onOpenBuyPanel,
+  onOpenReceivePanel,
+  onOpenTransferPanel,
 }: {
   address: string
   chainId: number
   chainTokens: Token[]
   currentChain: any
   onOpenBuyPanel?: () => void
+  onOpenReceivePanel?: () => void
+  onOpenTransferPanel?: () => void
 }) {
   const { data: nativeBalance } = useBalance({ address: address as `0x${string}` })
   const tokenBalances = useMultipleTokenBalances(chainTokens, address)
@@ -528,7 +954,11 @@ function RealOverviewTab({
               </div>
             </div>
           </button>
-          <button className="w-full p-4 bg-blue-50 hover:bg-blue-100 rounded-xl sm:rounded-2xl border border-blue-200 transition-colors text-left">
+          <button
+            type="button"
+            onClick={onOpenReceivePanel}
+            className="w-full p-4 bg-blue-50 hover:bg-blue-100 rounded-xl sm:rounded-2xl border border-blue-200 transition-colors text-left"
+          >
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
                 <ArrowDownCircle className="w-5 h-5 text-blue-600" />
@@ -539,7 +969,11 @@ function RealOverviewTab({
               </div>
             </div>
           </button>
-          <button className="w-full p-4 bg-blue-50 hover:bg-blue-100 rounded-xl sm:rounded-2xl border border-blue-200 transition-colors text-left">
+          <button
+            type="button"
+            onClick={onOpenTransferPanel}
+            className="w-full p-4 bg-blue-50 hover:bg-blue-100 rounded-xl sm:rounded-2xl border border-blue-200 transition-colors text-left"
+          >
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
                 <ArrowRightLeft className="w-5 h-5 text-blue-600" />
