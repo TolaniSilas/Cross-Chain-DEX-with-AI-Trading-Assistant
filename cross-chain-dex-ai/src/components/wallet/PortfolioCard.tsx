@@ -206,6 +206,7 @@ export default function PortfolioCard() {
 }
 
 const BINANCE_BUY_URL = 'https://www.binance.com/en/crypto/BUY'
+const BINANCE_SELL_URL = 'https://www.binance.com/en/crypto/SELL'
 
 // Buy crypto panel: only Swap, Buy, Sell tabs (opens from Quick Action "Buy crypto")
 function BuyCryptoPanel({ chainTokens, onClose }: { chainTokens: Token[]; onClose: () => void }) {
@@ -215,6 +216,7 @@ function BuyCryptoPanel({ chainTokens, onClose }: { chainTokens: Token[]; onClos
   const [currencyLabel] = useState('USD')
   const [tokenDropdownOpen, setTokenDropdownOpen] = useState(false)
   const [showBinanceStep, setShowBinanceStep] = useState(false)
+  const [showBinanceSellStep, setShowBinanceSellStep] = useState(false)
   const tokenDropdownRef = useRef<HTMLDivElement>(null)
 
   const quickAmounts = ['100', '300', '1000']
@@ -298,6 +300,56 @@ function BuyCryptoPanel({ chainTokens, onClose }: { chainTokens: Token[]; onClos
             <h2 className="text-xl font-bold text-gray-900 mb-3">Complete transaction with Binance</h2>
             <p className="text-sm text-gray-600 mb-8 leading-relaxed">
               Go to the Binance tab to continue. It&apos;s safe to close this modal now.
+            </p>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              By continuing, you acknowledge that you&apos;ll be subject to the Terms of Service and Privacy Policy with Binance, as applicable.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // "Complete sell with Binance" view when user clicks Continue on Sell tab (user knows they're selling)
+  if (showBinanceSellStep) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/50" aria-hidden onClick={onClose} />
+        <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <button
+              type="button"
+              onClick={() => setShowBinanceSellStep(false)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="Back"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors ml-auto"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
+
+          <div className="p-6 sm:p-8 text-center">
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden bg-blue-100 shrink-0">
+                <Image
+                  src="/icons/binance-svgrepo-com.svg"
+                  alt="Binance"
+                  width={40}
+                  height={40}
+                  className="w-10 h-10 object-contain [filter:invert(27%)_sepia(98%)_saturate(1000%)_hue-rotate(210deg)]"
+                />
+              </div>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-3">Complete sell with Binance</h2>
+            <p className="text-sm text-gray-600 mb-8 leading-relaxed">
+              You&apos;re selling crypto for fiat. Go to the Binance tab to continue. It&apos;s safe to close this modal now.
             </p>
             <p className="text-xs text-gray-500 leading-relaxed">
               By continuing, you acknowledge that you&apos;ll be subject to the Terms of Service and Privacy Policy with Binance, as applicable.
@@ -470,9 +522,116 @@ function BuyCryptoPanel({ chainTokens, onClose }: { chainTokens: Token[]; onClos
           )}
 
           {panelTab === 'sell' && (
-            <div className="py-6 text-center">
-              <p className="text-gray-600 text-sm">Sell crypto for fiat. (Coming soon.)</p>
-            </div>
+            <>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-600">You&apos;re selling</span>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 text-sm text-gray-700 hover:text-gray-900 rounded-lg px-2 py-1 hover:bg-gray-100"
+                >
+                  <span className="font-medium">{currencyLabel}</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="mb-4">
+                <label htmlFor="sell-fiat-amount" className="sr-only">
+                  Amount in USD
+                </label>
+                <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-3 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20">
+                  <span className="text-2xl sm:text-3xl font-semibold text-gray-900 tabular-nums">$</span>
+                  <input
+                    id="sell-fiat-amount"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={fiatAmount}
+                    onChange={(e) => handleAmountChange(e.target.value)}
+                    className="flex-1 min-w-0 text-2xl sm:text-3xl font-semibold text-gray-900 bg-transparent border-none outline-none tabular-nums placeholder:text-gray-400"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 mb-5">
+                {quickAmounts.map((amt) => (
+                  <button
+                    key={`sell-${amt}`}
+                    type="button"
+                    onClick={() => setFiatAmount(amt)}
+                    className="flex-1 py-2 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-sm font-medium text-gray-700 transition-colors"
+                  >
+                    ${amt}
+                  </button>
+                ))}
+              </div>
+              <div className="relative" ref={tokenDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setTokenDropdownOpen((o) => !o)}
+                  className="w-full flex items-center justify-between p-4 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-gray-100/50 transition-colors mb-4"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden shrink-0">
+                      <Image
+                        src={getTokenIconPath(selectedToken?.symbol ?? selectedCrypto)}
+                        alt=""
+                        width={20}
+                        height={20}
+                        className="rounded-full object-contain"
+                      />
+                    </div>
+                    <span className="font-semibold text-gray-900">{selectedToken?.symbol ?? selectedCrypto}</span>
+                  </div>
+                  <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${tokenDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {tokenDropdownOpen && buyTokens.length > 0 && (
+                  <div className="absolute left-0 right-0 bottom-full z-10 mb-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-hidden flex flex-col">
+                    <p className="px-4 py-3 text-sm font-semibold text-gray-900 border-b border-gray-100 shrink-0">
+                      Select a token
+                    </p>
+                    <div className="overflow-auto py-1">
+                    {buyTokens.map((token) => (
+                      <button
+                        key={`sell-token-${token.chainId}-${token.symbol}-${token.address}`}
+                        type="button"
+                        onClick={() => {
+                          setSelectedCrypto(token.symbol)
+                          setTokenDropdownOpen(false)
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-3 hover:bg-gray-50 text-left transition-colors"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden shrink-0">
+                          <Image
+                            src={getTokenIconPath(token.symbol)}
+                            alt=""
+                            width={20}
+                            height={20}
+                            className="rounded-full object-contain"
+                          />
+                        </div>
+                        <span className="font-semibold text-gray-900">{token.symbol}</span>
+                        <span className="text-xs text-gray-500">{token.name}</span>
+                      </button>
+                    ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (hasAmount) {
+                    window.open(BINANCE_SELL_URL, '_blank', 'noopener,noreferrer')
+                    setShowBinanceSellStep(true)
+                  }
+                }}
+                className={`w-full py-3 px-4 rounded-xl font-medium text-sm transition-colors ${
+                  hasAmount
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                }`}
+              >
+                {hasAmount ? 'Continue' : 'Enter an amount'}
+              </button>
+            </>
           )}
         </div>
       </div>
