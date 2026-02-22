@@ -4,7 +4,8 @@ import { useState, useMemo, useEffect } from 'react'
 import { useAccount, useChainId, useBalance } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import Image from 'next/image'
-import { Copy, ExternalLink, Wallet as WalletIcon, TrendingUp, TrendingDown, Send, Download, DollarSign, MoreHorizontal, Sparkles, ArrowUpRight, Landmark, ArrowDownCircle, ArrowRightLeft } from 'lucide-react'
+import Link from 'next/link'
+import { Copy, ExternalLink, Wallet as WalletIcon, TrendingUp, TrendingDown, Send, Download, DollarSign, MoreHorizontal, Sparkles, ArrowUpRight, Landmark, ArrowDownCircle, ArrowRightLeft, ChevronDown, X } from 'lucide-react'
 import { supportedChains } from '@/config/chains'
 import { getTokensByChain, type Token } from '@/config/tokens'
 import useTokenBalance, { useMultipleTokenBalances } from '@/hooks/useTokenBalance'
@@ -24,6 +25,7 @@ export default function PortfolioCard() {
   const chainId = useChainId()
   const [copiedAddress, setCopiedAddress] = useState(false)
   const [selectedTab, setSelectedTab] = useState<'overview' | 'tokens' | 'activity'>('overview')
+  const [showBuyPanel, setShowBuyPanel] = useState(false)
 
   const currentChain = useMemo(() => {
     return supportedChains.find(c => c.id === chainId)
@@ -158,6 +160,7 @@ export default function PortfolioCard() {
                 chainId={chainId}
                 chainTokens={chainTokens}
                 currentChain={currentChain}
+                onOpenBuyPanel={() => setShowBuyPanel(true)}
               />
             )}
 
@@ -173,6 +176,130 @@ export default function PortfolioCard() {
               <RealActivityTab address={address} currentChain={currentChain} />
             )}
           </div>
+        </div>
+
+        {/* Buy crypto panel modal - Swap / Buy / Sell only */}
+        {showBuyPanel && (
+          <BuyCryptoPanel onClose={() => setShowBuyPanel(false)} />
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Buy crypto panel: only Swap, Buy, Sell tabs (opens from Quick Action "Buy crypto")
+function BuyCryptoPanel({ onClose }: { onClose: () => void }) {
+  const [panelTab, setPanelTab] = useState<'swap' | 'buy' | 'sell'>('buy')
+  const [fiatAmount, setFiatAmount] = useState('0')
+  const [selectedCrypto, setSelectedCrypto] = useState('ETH')
+  const [currencyLabel, setCurrencyLabel] = useState('USD')
+
+  const quickAmounts = ['100', '300', '1000']
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" aria-hidden onClick={onClose} />
+      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+        <div className="flex items-center justify-end p-3 border-b border-gray-100">
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
+
+        {/* Tabs: Swap | Buy | Sell only */}
+        <div className="flex border-b border-gray-200">
+          {(['swap', 'buy', 'sell'] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setPanelTab(tab)}
+              className={`flex-1 py-3 px-4 text-sm font-semibold capitalize transition-colors ${
+                panelTab === tab
+                  ? 'bg-gray-100 text-gray-900 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        <div className="p-5">
+          {panelTab === 'buy' && (
+            <>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-600">You&apos;re buying</span>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 text-sm text-gray-700 hover:text-gray-900 rounded-lg px-2 py-1 hover:bg-gray-100"
+                >
+                  <span className="font-medium">{currencyLabel}</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-3xl font-semibold text-gray-900 mb-4 tabular-nums">
+                ${fiatAmount}
+              </p>
+              <div className="flex gap-2 mb-5">
+                {quickAmounts.map((amt) => (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => setFiatAmount(amt)}
+                    className="flex-1 py-2 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-sm font-medium text-gray-700 transition-colors"
+                  >
+                    ${amt}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center justify-between p-4 rounded-xl border border-gray-200 bg-gray-50/50 mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
+                    <Image
+                      src={getTokenIconPath(selectedCrypto)}
+                      alt=""
+                      width={20}
+                      height={20}
+                      className="rounded-full object-contain"
+                    />
+                  </div>
+                  <span className="font-semibold text-gray-900">{selectedCrypto}</span>
+                </div>
+                <ChevronDown className="w-5 h-5 text-gray-500" />
+              </div>
+              <button
+                type="button"
+                className="w-full py-3 px-4 rounded-xl bg-gray-200 text-gray-600 font-medium text-sm hover:bg-gray-300 transition-colors"
+              >
+                Enter an amount
+              </button>
+            </>
+          )}
+
+          {panelTab === 'swap' && (
+            <div className="py-6 text-center">
+              <p className="text-gray-600 text-sm mb-4">Swap tokens on this DEX.</p>
+              <Link
+                href="/swap"
+                onClick={onClose}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
+              >
+                Go to Swap
+                <ArrowUpRight className="w-4 h-4" />
+              </Link>
+            </div>
+          )}
+
+          {panelTab === 'sell' && (
+            <div className="py-6 text-center">
+              <p className="text-gray-600 text-sm">Sell crypto for fiat. (Coming soon.)</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -302,11 +429,13 @@ function RealOverviewTab({
   chainId,
   chainTokens,
   currentChain,
+  onOpenBuyPanel,
 }: {
   address: string
   chainId: number
   chainTokens: Token[]
   currentChain: any
+  onOpenBuyPanel?: () => void
 }) {
   const { data: nativeBalance } = useBalance({ address: address as `0x${string}` })
   const tokenBalances = useMultipleTokenBalances(chainTokens, address)
@@ -384,7 +513,11 @@ function RealOverviewTab({
       <div>
         <h4 className="text-sm sm:text-base font-semibold text-gray-700 mb-3 sm:mb-4">Quick Actions</h4>
         <div className="space-y-3 mb-5 sm:mb-8">
-          <button className="w-full p-4 bg-blue-50 hover:bg-blue-100 rounded-xl sm:rounded-2xl border border-blue-200 transition-colors text-left">
+          <button
+            type="button"
+            onClick={onOpenBuyPanel}
+            className="w-full p-4 bg-blue-50 hover:bg-blue-100 rounded-xl sm:rounded-2xl border border-blue-200 transition-colors text-left"
+          >
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
                 <Landmark className="w-5 h-5 text-blue-600" />
