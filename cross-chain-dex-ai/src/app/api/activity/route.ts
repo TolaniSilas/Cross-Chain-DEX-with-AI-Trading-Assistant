@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit, getClientIdentifier } from '@/lib/rateLimit'
 
-// Etherscan API V2 only; no Ethereum mainnet - Sepolia and Polygon Amoy only
+// Etherscan API V2: txlist for the connected ETH wallet address (Ethereum mainnet, chainid=1).
+// Single history for the wallet, not per-chain (Sepolia/Polygon).
 const ETHERSCAN_V2_BASE = 'https://api.etherscan.io/v2/api'
-const SUPPORTED_CHAIN_IDS = [11155111, 80002] // Sepolia, Polygon Amoy
-
-function isSupportedChain(chainId: number): boolean {
-  return SUPPORTED_CHAIN_IDS.includes(chainId)
-}
+const ETHEREUM_CHAIN_ID = 1
 
 export interface ActivityTx {
   blockNumber: string
@@ -35,14 +32,9 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url)
   const address = searchParams.get('address')
-  const chainIdParam = searchParams.get('chainId')
-  const chainId = chainIdParam ? parseInt(chainIdParam, 10) : NaN
 
   if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
     return NextResponse.json({ error: 'Invalid address' }, { status: 400 })
-  }
-  if (!Number.isInteger(chainId) || chainId <= 0) {
-    return NextResponse.json({ error: 'Invalid chainId' }, { status: 400 })
   }
 
   const apiKey = process.env.ETHERSCAN_API_KEY
@@ -53,21 +45,12 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  if (!isSupportedChain(chainId)) {
-    return NextResponse.json({
-      result: [],
-      message: 'Unsupported chain for activity',
-    })
-  }
-
+  // GET request format: chainid=1 (Ethereum), module=account, action=txlist, address, apikey
   const params = new URLSearchParams({
-    chainid: String(chainId),
+    chainid: String(ETHEREUM_CHAIN_ID),
     module: 'account',
     action: 'txlist',
     address,
-    startblock: '0',
-    endblock: '99999999',
-    sort: 'desc',
     apikey: apiKey,
   })
 

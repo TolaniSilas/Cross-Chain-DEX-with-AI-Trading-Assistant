@@ -5,7 +5,7 @@ import { useAccount, useChainId, useBalance } from 'wagmi'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Copy, ExternalLink, Wallet as WalletIcon, TrendingUp, TrendingDown, Send, Download, DollarSign, MoreHorizontal, Sparkles, ArrowUpRight, Landmark, ArrowDownCircle, ArrowRightLeft, ChevronDown, X, QrCode, ArrowLeft } from 'lucide-react'
+import { Copy, ExternalLink, Wallet as WalletIcon, TrendingUp, TrendingDown, Send, Download, DollarSign, MoreHorizontal, Sparkles, ArrowUpRight, Landmark, ArrowDownCircle, ArrowDownLeft, ArrowRightLeft, ChevronDown, X, QrCode, ArrowLeft } from 'lucide-react'
 import { supportedChains } from '@/config/chains'
 import { getTokensByChain, type Token } from '@/config/tokens'
 import useTokenBalance, { useMultipleTokenBalances } from '@/hooks/useTokenBalance'
@@ -109,10 +109,12 @@ export default function PortfolioCard() {
               <div className="flex items-center gap-2 sm:gap-3">
                 <div className="text-left sm:text-right">
                   <p className="text-xs sm:text-sm text-gray-600">Network</p>
-                  <p className="text-sm sm:text-base font-semibold text-gray-900">{currentChain?.name || 'Unknown'}</p>
+                  <p className="text-sm sm:text-base font-semibold text-gray-900">
+                    {selectedTab === 'activity' ? 'ETH network' : currentChain?.name || 'Unknown'}
+                  </p>
                 </div>
                 <span className="px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-100 text-blue-600 rounded-full text-xs sm:text-sm font-semibold shrink-0">
-                  {currentChain?.name || 'Unknown'}
+                  {selectedTab === 'activity' ? 'ETH' : currentChain?.name || 'Unknown'}
                 </span>
               </div>
             </div>
@@ -1346,7 +1348,7 @@ function RealTokenRow({
   )
 }
 
-// Etherscan txlist result item (from /api/activity)
+// Activity tx shape from Etherscan txlist API
 interface ActivityTxItem {
   blockNumber: string
   timeStamp: string
@@ -1359,39 +1361,36 @@ interface ActivityTxItem {
   functionName?: string
 }
 
-// Real Activity Tab - fetch transaction history via Etherscan API (Sepolia, Polygon Amoy only)
-function RealActivityTab({ address, currentChain }: { address: string; currentChain: any }) {
-  const [txs, setTxs] = useState<ActivityTxItem[]>([])
+// Real Activity Tab - transaction history for the connected ETH wallet (Ethereum mainnet via Etherscan)
+function RealActivityTab({ address }: { address: string; currentChain?: any }) {
+  const [list, setList] = useState<ActivityTxItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const chainId = currentChain?.id
-  const nativeSymbol = currentChain?.nativeCurrency?.symbol ?? 'ETH'
-  const explorerUrl = currentChain?.blockExplorers?.default?.url
-
   useEffect(() => {
-    if (!address || !chainId) {
+    if (!address) {
       setLoading(false)
       return
     }
     let cancelled = false
     setLoading(true)
     setError(null)
-    fetch(`/api/activity?address=${encodeURIComponent(address)}&chainId=${chainId}`)
+    fetch(`/api/activity?address=${encodeURIComponent(address)}`)
       .then((res) => res.json())
       .then((data) => {
         if (cancelled) return
-        if (data.error && !Array.isArray(data.result)) {
+        if (data.error && !data.result) {
           setError(data.error)
-          setTxs([])
+          setList([])
         } else {
-          setTxs(Array.isArray(data.result) ? data.result : [])
+          setList(Array.isArray(data.result) ? data.result : [])
+          setError(null)
         }
       })
       .catch(() => {
         if (!cancelled) {
           setError('Failed to load activity')
-          setTxs([])
+          setList([])
         }
       })
       .finally(() => {
@@ -1400,105 +1399,122 @@ function RealActivityTab({ address, currentChain }: { address: string; currentCh
     return () => {
       cancelled = true
     }
-  }, [address, chainId])
+  }, [address])
+
+  const explorerUrl = 'https://etherscan.io'
+  const nativeSymbol = 'ETH'
 
   const formatValue = (wei: string) => {
-    const v = Number(BigInt(wei) / BigInt(1e18))
-    if (v === 0) return '0'
-    if (v < 0.0001) return '<0.0001'
-    return v.toFixed(4)
+    const value = Number(wei) / 1e18
+    if (value >= 1) return value.toFixed(4)
+    if (value > 0) return value.toFixed(6)
+    return '0'
   }
 
   const formatDate = (timeStamp: string) => {
-    const ts = parseInt(timeStamp, 10)
-    if (Number.isNaN(ts)) return '—'
-    const d = new Date(ts * 1000)
+    const date = new Date(Number(timeStamp) * 1000)
     const now = new Date()
-    const diffMs = now.getTime() - d.getTime()
-    const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000))
+    const diffMs = now.getTime() - date.getTime()
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
     if (diffDays === 0) return 'Today'
     if (diffDays === 1) return 'Yesterday'
     if (diffDays < 7) return `${diffDays}d ago`
-    return d.toLocaleDateString()
+    return date.toLocaleDateString()
   }
-
-  const isSent = (tx: ActivityTxItem) => tx.from.toLowerCase() === address.toLowerCase()
 
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 sm:mb-6">
-        <h3 className="text-lg sm:text-2xl font-bold text-gray-900">Recent activity</h3>
-        {loading && <p className="text-sm sm:text-base text-gray-600">Loading from blockchain...</p>}
+        <div>
+          <h3 className="text-lg sm:text-2xl font-bold text-gray-900">Recent activity</h3>
+        </div>
+        <div className="flex items-center gap-3">
+          {loading && <p className="text-sm sm:text-base text-gray-600">Loading from blockchain...</p>}
+          {!loading && list.length > 0 && (
+            <span className="text-xs sm:text-sm text-gray-500">{list.length} transaction{list.length !== 1 ? 's' : ''}</span>
+          )}
+        </div>
       </div>
 
       {loading && (
-        <div className="p-8 text-center bg-gray-50 rounded-xl border border-gray-200">
-          <p className="text-sm text-gray-600">Fetching transaction history for {currentChain?.name}...</p>
+        <div className="p-8 text-center bg-gray-50 rounded-xl sm:rounded-2xl border border-gray-200">
+          <p className="text-sm text-gray-600">Fetching transaction history for this address…</p>
         </div>
       )}
 
-      {!loading && error && (
-        <div className="p-5 sm:p-8 text-center bg-gray-50 rounded-xl border border-gray-200">
-          <p className="text-sm text-gray-600">{error}</p>
+      {error && !loading && (
+        <div className="p-5 sm:p-8 text-center bg-gray-50 rounded-xl sm:rounded-2xl border border-gray-200">
+          <p className="text-sm text-red-600">{error}</p>
           <p className="text-xs text-gray-500 mt-2 break-all">Address: {address}</p>
         </div>
       )}
 
-      {!loading && !error && txs.length === 0 && (
-        <div className="p-5 sm:p-8 text-center bg-gray-50 rounded-xl border border-gray-200">
-          <p className="text-sm text-gray-600">No transactions yet on {currentChain?.name}</p>
-          <p className="text-xs text-gray-500 mt-2 break-all">Address: {address}</p>
+      {!loading && !error && list.length === 0 && (
+        <div className="p-5 sm:p-8 text-center bg-gray-50 rounded-xl sm:rounded-2xl border border-gray-200">
+          <p className="text-sm sm:text-base text-gray-600">No transactions yet for this Ethereum wallet</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-2 break-all">Address: {address}</p>
         </div>
       )}
 
-      {!loading && !error && txs.length > 0 && (
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
-          <div className="hidden sm:grid sm:grid-cols-[1fr_auto_auto_auto] gap-3 px-4 py-3 bg-gray-50 text-xs font-semibold text-gray-700">
-            <div>Type</div>
-            <div className="text-right">Amount</div>
-            <div>Date</div>
-            <div className="text-right">Tx</div>
+      {!loading && !error && list.length > 0 && (
+        <div className="mt-3 sm:mt-4 border border-gray-200 rounded-xl overflow-hidden">
+          <div className="hidden sm:grid sm:grid-cols-[1.1fr_0.9fr_0.9fr_1.6fr_auto] gap-4 sm:gap-6 px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 text-xs font-semibold text-gray-700">
+            <div className="text-left">Type</div>
+            <div className="text-right">Value</div>
+            <div className="text-left">Date</div>
+            <div className="text-left">Tx hash</div>
+            <div />
           </div>
           <div className="divide-y divide-gray-200">
-            {txs.map((tx) => (
-              <div
-                key={tx.hash}
-                className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2 sm:gap-3 px-4 py-3 sm:py-4 hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                      isSent(tx) ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
-                    }`}
-                  >
-                    {isSent(tx) ? 'Sent' : 'Received'}
-                  </span>
-                  {tx.isError === '1' && (
-                    <span className="text-xs text-red-600 font-medium">Failed</span>
-                  )}
-                </div>
-                <div className="text-sm font-semibold text-gray-900 tabular-nums sm:text-right">
-                  {formatValue(tx.value)} {nativeSymbol}
-                </div>
-                <div className="text-xs sm:text-sm text-gray-500">{formatDate(tx.timeStamp)}</div>
-                <div className="sm:text-right">
-                  {explorerUrl ? (
-                    <a
-                      href={`${explorerUrl}/tx/${tx.hash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+            {list.map((tx) => {
+              const isSent = tx.from.toLowerCase() === address.toLowerCase()
+              return (
+                <div
+                  key={tx.hash}
+                  className="flex flex-col sm:grid sm:grid-cols-[1.1fr_0.9fr_0.9fr_1.6fr_auto] gap-3 sm:gap-6 px-4 sm:px-6 py-4 sm:py-5 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-7 h-7 rounded-full flex items-center justify-center ${
+                        isSent ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                      }`}
                     >
-                      View <ArrowUpRight className="w-3 h-3" />
-                    </a>
-                  ) : (
-                    <span className="text-xs text-gray-400 font-mono truncate max-w-[120px] inline-block">
-                      {tx.hash.slice(0, 10)}…
+                      {isSent ? (
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                      ) : (
+                        <ArrowDownLeft className="w-3.5 h-3.5" />
+                      )}
+                    </div>
+                    <span
+                      className={`text-xs font-semibold ${
+                        isSent ? 'text-red-700' : 'text-green-700'
+                      }`}
+                    >
+                      {isSent ? 'Sent' : 'Received'}
                     </span>
-                  )}
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900 tabular-nums text-right sm:text-right">
+                    {formatValue(tx.value)} {nativeSymbol}
+                  </div>
+                  <div className="text-sm text-gray-600">{formatDate(tx.timeStamp)}</div>
+                  <div className="font-mono text-xs text-gray-600 truncate min-w-0" title={tx.hash}>
+                    {tx.hash.slice(0, 10)}…{tx.hash.slice(-8)}
+                  </div>
+                  <div className="sm:text-right mt-1 sm:mt-0">
+                    {explorerUrl && (
+                      <a
+                        href={`${explorerUrl}/tx/${tx.hash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        View <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
