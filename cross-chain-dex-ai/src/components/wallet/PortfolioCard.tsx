@@ -1346,23 +1346,162 @@ function RealTokenRow({
   )
 }
 
-// Real Activity Tab - fetch from blockchain
+// Etherscan txlist result item (from /api/activity)
+interface ActivityTxItem {
+  blockNumber: string
+  timeStamp: string
+  hash: string
+  from: string
+  to: string
+  value: string
+  gasUsed: string
+  isError: string
+  functionName?: string
+}
+
+// Real Activity Tab - fetch transaction history via Etherscan API (Sepolia, Polygon Amoy only)
 function RealActivityTab({ address, currentChain }: { address: string; currentChain: any }) {
+  const [txs, setTxs] = useState<ActivityTxItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const chainId = currentChain?.id
+  const nativeSymbol = currentChain?.nativeCurrency?.symbol ?? 'ETH'
+  const explorerUrl = currentChain?.blockExplorers?.default?.url
+
+  useEffect(() => {
+    if (!address || !chainId) {
+      setLoading(false)
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    fetch(`/api/activity?address=${encodeURIComponent(address)}&chainId=${chainId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return
+        if (data.error && !Array.isArray(data.result)) {
+          setError(data.error)
+          setTxs([])
+        } else {
+          setTxs(Array.isArray(data.result) ? data.result : [])
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError('Failed to load activity')
+          setTxs([])
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [address, chainId])
+
+  const formatValue = (wei: string) => {
+    const v = Number(BigInt(wei) / BigInt(1e18))
+    if (v === 0) return '0'
+    if (v < 0.0001) return '<0.0001'
+    return v.toFixed(4)
+  }
+
+  const formatDate = (timeStamp: string) => {
+    const ts = parseInt(timeStamp, 10)
+    if (Number.isNaN(ts)) return '—'
+    const d = new Date(ts * 1000)
+    const now = new Date()
+    const diffMs = now.getTime() - d.getTime()
+    const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000))
+    if (diffDays === 0) return 'Today'
+    if (diffDays === 1) return 'Yesterday'
+    if (diffDays < 7) return `${diffDays}d ago`
+    return d.toLocaleDateString()
+  }
+
+  const isSent = (tx: ActivityTxItem) => tx.from.toLowerCase() === address.toLowerCase()
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 sm:mb-6">
         <h3 className="text-lg sm:text-2xl font-bold text-gray-900">Recent activity</h3>
-        <p className="text-sm sm:text-base text-gray-600">Loading from blockchain...</p>
+        {loading && <p className="text-sm sm:text-base text-gray-600">Loading from blockchain...</p>}
       </div>
 
-      <div className="p-5 sm:p-8 text-center bg-gray-50 rounded-xl sm:rounded-2xl border border-gray-200">
-        <p className="text-sm sm:text-base text-gray-600">
-          Real transaction history will be fetched from {currentChain?.name} blockchain
-        </p>
-        <p className="text-xs sm:text-sm text-gray-500 mt-2 break-all">
-          Address: {address}
-        </p>
-      </div>
+      {loading && (
+        <div className="p-8 text-center bg-gray-50 rounded-xl border border-gray-200">
+          <p className="text-sm text-gray-600">Fetching transaction history for {currentChain?.name}...</p>
+        </div>
+      )}
+
+      {!loading && error && (
+        <div className="p-5 sm:p-8 text-center bg-gray-50 rounded-xl border border-gray-200">
+          <p className="text-sm text-gray-600">{error}</p>
+          <p className="text-xs text-gray-500 mt-2 break-all">Address: {address}</p>
+        </div>
+      )}
+
+      {!loading && !error && txs.length === 0 && (
+        <div className="p-5 sm:p-8 text-center bg-gray-50 rounded-xl border border-gray-200">
+          <p className="text-sm text-gray-600">No transactions yet on {currentChain?.name}</p>
+          <p className="text-xs text-gray-500 mt-2 break-all">Address: {address}</p>
+        </div>
+      )}
+
+      {!loading && !error && txs.length > 0 && (
+        <div className="border border-gray-200 rounded-xl overflow-hidden">
+          <div className="hidden sm:grid sm:grid-cols-[1fr_auto_auto_auto] gap-3 px-4 py-3 bg-gray-50 text-xs font-semibold text-gray-700">
+            <div>Type</div>
+            <div className="text-right">Amount</div>
+            <div>Date</div>
+            <div className="text-right">Tx</div>
+          </div>
+          <div className="divide-y divide-gray-200">
+            {txs.map((tx) => (
+              <div
+                key={tx.hash}
+                className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2 sm:gap-3 px-4 py-3 sm:py-4 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                      isSent(tx) ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                    }`}
+                  >
+                    {isSent(tx) ? 'Sent' : 'Received'}
+                  </span>
+                  {tx.isError === '1' && (
+                    <span className="text-xs text-red-600 font-medium">Failed</span>
+                  )}
+                </div>
+                <div className="text-sm font-semibold text-gray-900 tabular-nums sm:text-right">
+                  {formatValue(tx.value)} {nativeSymbol}
+                </div>
+                <div className="text-xs sm:text-sm text-gray-500">{formatDate(tx.timeStamp)}</div>
+                <div className="sm:text-right">
+                  {explorerUrl ? (
+                    <a
+                      href={`${explorerUrl}/tx/${tx.hash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      View <ArrowUpRight className="w-3 h-3" />
+                    </a>
+                  ) : (
+                    <span className="text-xs text-gray-400 font-mono truncate max-w-[120px] inline-block">
+                      {tx.hash.slice(0, 10)}…
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
