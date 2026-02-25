@@ -51,7 +51,7 @@ export default function PortfolioCard() {
       <div className="w-full px-4">
         <div className="max-w-6xl mx-auto">
           {/* Connect Wallet Card */}
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-5xl w-full mx-auto">
             <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 backdrop-blur border border-blue-200 rounded-2xl sm:rounded-3xl shadow-lg p-6 sm:p-10 md:p-16 lg:p-20 text-center">
               <div className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24 bg-blue-200 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
                 <WalletIcon className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 text-blue-600" />
@@ -82,16 +82,16 @@ export default function PortfolioCard() {
         <div className="bg-white/80 backdrop-blur border border-gray-200 rounded-2xl sm:rounded-3xl shadow-lg overflow-hidden">
           {/* Header with Wallet Info */}
           <div className="p-4 sm:p-6 border-b border-gray-200 bg-white/50">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
               <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                 <div className="w-11 h-11 sm:w-14 sm:h-14 bg-blue-200 rounded-full flex items-center justify-center shrink-0">
                   <span className="text-base sm:text-xl font-bold text-blue-600">
                     {address.slice(2, 4).toUpperCase()}
                   </span>
                 </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5 sm:mb-1">
-                    <code className="text-sm sm:text-base font-mono text-gray-900 truncate">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
+                      <code className="text-[11px] sm:text-sm md:text-base font-mono text-gray-900 truncate">
                       {address.slice(0, 6)}...{address.slice(-4)}
                     </code>
                     <button
@@ -102,18 +102,17 @@ export default function PortfolioCard() {
                       <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
                     </button>
                   </div>
-                  {copiedAddress && <p className="text-xs text-green-600">✓ Address copied!</p>}
+                    {copiedAddress && <p className="text-[11px] sm:text-xs text-green-600">✓ Address copied!</p>}
                 </div>
               </div>
               
-              <div className="flex items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-1.5 sm:gap-3">
                 <div className="text-left sm:text-right">
-                  <p className="text-xs sm:text-sm text-gray-600">Network</p>
-                  <p className="text-sm sm:text-base font-semibold text-gray-900">
+                  <p className="text-xs sm:text-sm font-semibold text-gray-900 whitespace-nowrap">
                     {selectedTab === 'activity' ? 'ETH network' : currentChain?.name || 'Unknown'}
                   </p>
                 </div>
-                <span className="px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-100 text-blue-600 rounded-full text-xs sm:text-sm font-semibold shrink-0">
+                <span className="px-2.5 py-1 sm:px-4 sm:py-2 bg-blue-100 text-blue-600 rounded-full text-[11px] sm:text-sm font-semibold shrink-0">
                   {selectedTab === 'activity' ? 'ETH' : currentChain?.name || 'Unknown'}
                 </span>
               </div>
@@ -1256,7 +1255,7 @@ function RealTokensTab({
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 sm:mb-6">
+      <div className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
         <h3 className="text-lg sm:text-2xl font-bold text-gray-900">
           Tokens on {currentChain?.name}
         </h3>
@@ -1305,7 +1304,7 @@ function RealTokenRow({
 
   return (
     <div className="flex flex-col sm:grid sm:grid-cols-[1.8fr_1fr_1fr_1.1fr] gap-2 sm:gap-4 px-4 md:px-6 py-3 sm:py-4 hover:bg-gray-50 transition-colors">
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 mb-2 sm:mb-0">
         <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center shrink-0 overflow-hidden">
           <Image
             src={getTokenIconPath(token.symbol)}
@@ -1330,8 +1329,10 @@ function RealTokenRow({
       </div>
       <div className="flex justify-between sm:justify-center items-center gap-2 text-sm">
         <span className="sm:hidden text-gray-500">Value</span>
-        <div className="flex items-center sm:justify-center gap-2 min-w-[92px]">
-          <p className="font-semibold text-gray-900 tabular-nums text-center min-w-[56px]">${balanceUsd}</p>
+        <div className="flex items-center justify-end sm:justify-center gap-1 sm:gap-2 sm:min-w-[92px]">
+          <p className="font-semibold text-gray-900 tabular-nums text-right sm:text-center sm:min-w-[56px]">
+            ${balanceUsd}
+          </p>
           {blockExplorer && (
             <a
               href={`${blockExplorer.url}/token/${token.address}`}
@@ -1406,9 +1407,8 @@ function RealActivityTab({ address }: { address: string; currentChain?: any }) {
 
   const formatValue = (wei: string) => {
     const value = Number(wei) / 1e18
-    if (value >= 1) return value.toFixed(4)
-    if (value > 0) return value.toFixed(6)
-    return '0'
+    if (!Number.isFinite(value) || value <= 0) return '0'
+    return (Math.round(value * 1e5) / 1e5).toFixed(5)
   }
 
   const formatDate = (timeStamp: string) => {
@@ -1424,14 +1424,18 @@ function RealActivityTab({ address }: { address: string; currentChain?: any }) {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 sm:mb-6">
-        <div>
-          <h3 className="text-lg sm:text-2xl font-bold text-gray-900">Recent activity</h3>
-        </div>
-        <div className="flex items-center gap-3">
-          {loading && <p className="text-sm sm:text-base text-gray-600">Loading from blockchain...</p>}
+      <div className="flex items-baseline justify-between gap-2 mb-4 sm:mb-6">
+        <h3 className="text-lg sm:text-2xl font-bold text-gray-900">Recent activity</h3>
+        <div className="flex items-center gap-2">
+          {loading && (
+            <p className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
+              Loading from blockchain...
+            </p>
+          )}
           {!loading && list.length > 0 && (
-            <span className="text-xs sm:text-sm text-gray-500">{list.length} transaction{list.length !== 1 ? 's' : ''}</span>
+            <span className="px-2.5 py-1 rounded-full bg-blue-50 text-[11px] sm:text-xs font-medium text-blue-600 whitespace-nowrap">
+              {list.length} transaction{list.length !== 1 ? 's' : ''}
+            </span>
           )}
         </div>
       </div>
@@ -1458,10 +1462,10 @@ function RealActivityTab({ address }: { address: string; currentChain?: any }) {
 
       {!loading && !error && list.length > 0 && (
         <div className="mt-3 sm:mt-4 border border-gray-200 rounded-xl overflow-hidden">
-          <div className="hidden sm:grid sm:grid-cols-[1.1fr_0.9fr_0.9fr_1.6fr_auto] gap-4 sm:gap-6 px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 text-xs font-semibold text-gray-700">
+          <div className="hidden sm:grid sm:grid-cols-[1.1fr_0.9fr_1.6fr_auto] lg:grid-cols-[1.1fr_0.9fr_0.9fr_1.6fr_auto] gap-4 sm:gap-6 px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 text-xs font-semibold text-gray-700">
             <div className="text-left">Type</div>
-            <div className="text-right">Value</div>
-            <div className="text-left">Date</div>
+            <div className="text-center">Value</div>
+            <div className="text-center hidden lg:block">Date</div>
             <div className="text-left">Tx hash</div>
             <div />
           </div>
@@ -1469,48 +1473,91 @@ function RealActivityTab({ address }: { address: string; currentChain?: any }) {
             {list.map((tx) => {
               const isSent = tx.from.toLowerCase() === address.toLowerCase()
               return (
-                <div
-                  key={tx.hash}
-                  className="flex flex-col sm:grid sm:grid-cols-[1.1fr_0.9fr_0.9fr_1.6fr_auto] gap-3 sm:gap-6 px-4 sm:px-6 py-4 sm:py-5 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center ${
-                        isSent ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
-                      }`}
-                    >
-                      {isSent ? (
-                        <ArrowUpRight className="w-3.5 h-3.5" />
-                      ) : (
-                        <ArrowDownLeft className="w-3.5 h-3.5" />
+                <div key={tx.hash} className="flex flex-col">
+                  {/* Mobile layout (no hash, just type, value, view) */}
+                  <div className="sm:hidden px-4 py-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-7 h-7 rounded-full flex items-center justify-center ${
+                            isSent ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                          }`}
+                        >
+                          {isSent ? (
+                            <ArrowUpRight className="w-3.5 h-3.5" />
+                          ) : (
+                            <ArrowDownLeft className="w-3.5 h-3.5" />
+                          )}
+                        </div>
+                        <span
+                          className={`text-xs font-semibold ${
+                            isSent ? 'text-red-700' : 'text-green-700'
+                          }`}
+                        >
+                          {isSent ? 'Sent' : 'Received'}
+                        </span>
+                      </div>
+                      <div className="text-sm font-semibold text-gray-900 tabular-nums text-right">
+                        {formatValue(tx.value)} {nativeSymbol}
+                      </div>
+                    </div>
+                    <div className="mt-2 flex justify-end">
+                      {explorerUrl && (
+                        <a
+                          href={`${explorerUrl}/tx/${tx.hash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          View <ExternalLink className="w-3 h-3" />
+                        </a>
                       )}
                     </div>
-                    <span
-                      className={`text-xs font-semibold ${
-                        isSent ? 'text-red-700' : 'text-green-700'
-                      }`}
-                    >
-                      {isSent ? 'Sent' : 'Received'}
-                    </span>
                   </div>
-                  <div className="text-sm font-semibold text-gray-900 tabular-nums text-right sm:text-right">
-                    {formatValue(tx.value)} {nativeSymbol}
-                  </div>
-                  <div className="text-sm text-gray-600">{formatDate(tx.timeStamp)}</div>
-                  <div className="font-mono text-xs text-gray-600 truncate min-w-0" title={tx.hash}>
-                    {tx.hash.slice(0, 10)}…{tx.hash.slice(-8)}
-                  </div>
-                  <div className="sm:text-right mt-1 sm:mt-0">
-                    {explorerUrl && (
-                      <a
-                        href={`${explorerUrl}/tx/${tx.hash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+
+                  {/* Desktop / tablet table row */}
+                  <div className="hidden sm:grid sm:grid-cols-[1.1fr_0.9fr_1.6fr_auto] lg:grid-cols-[1.1fr_0.9fr_0.9fr_1.6fr_auto] gap-3 sm:gap-6 px-4 sm:px-6 py-4 sm:py-5 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-7 h-7 rounded-full flex items-center justify-center ${
+                          isSent ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                        }`}
                       >
-                        View <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
+                        {isSent ? (
+                          <ArrowUpRight className="w-3.5 h-3.5" />
+                        ) : (
+                          <ArrowDownLeft className="w-3.5 h-3.5" />
+                        )}
+                      </div>
+                      <span
+                        className={`text-xs font-semibold ${
+                          isSent ? 'text-red-700' : 'text-green-700'
+                        }`}
+                      >
+                        {isSent ? 'Sent' : 'Received'}
+                      </span>
+                    </div>
+                    <div className="text-sm font-semibold text-gray-900 tabular-nums text-center sm:text-center">
+                      {formatValue(tx.value)} {nativeSymbol}
+                    </div>
+                    <div className="text-sm text-gray-600 hidden lg:block text-center">
+                      {formatDate(tx.timeStamp)}
+                    </div>
+                    <div className="font-mono text-xs text-gray-600 truncate min-w-0" title={tx.hash}>
+                      {tx.hash.slice(0, 10)}…{tx.hash.slice(-8)}
+                    </div>
+                    <div className="sm:text-right mt-1 sm:mt-0">
+                      {explorerUrl && (
+                        <a
+                          href={`${explorerUrl}/tx/${tx.hash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          View <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </div>
               )
